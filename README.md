@@ -16,7 +16,8 @@
 
 В отличие от многих аналогов, приложение **не требует** установки Python, Node.js или дополнительных библиотек. Всё уже упаковано в один исполняемый файл.
 
-<img width="654" height="944" alt="image" src="https://github.com/user-attachments/assets/84e968fd-92c8-4aaf-bcc2-25ca4916165a" />
+<img width="796" height="1081" alt="image" src="https://github.com/user-attachments/assets/d75d9d9a-a35e-421c-a38f-92436890d772" />
+
 Главное окно программы
 
 ---
