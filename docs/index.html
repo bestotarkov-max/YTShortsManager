@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YT Shorts Manager - Загрузчик YouTube для Windows</title>
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --card-bg: #151a25;
+            --primary: #ff0033;
+            --primary-hover: #ff3355;
+            --text-main: #ffffff;
+            --text-muted: #8892b0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* --- ГЛАВНЫЙ ЭКРАН --- */
+        header {
+            text-align: center;
+            padding: 80px 0 50px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(255, 0, 51, 0.5);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        .btn-download {
+            display: inline-block;
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 8px;
+            transition: background 0.3s, transform 0.2s;
+            box-shadow: 0 4px 15px rgba(255, 0, 51, 0.3);
+        }
+
+        .btn-download:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .os-info {
+            display: block;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        /* --- СКРИНШОТ --- */
+        .screenshot-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .screenshot-container img {
+            max-width: 100%;
+            border-radius: 12px;
+            border: 1px solid #2e3547;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* --- ОСОБЕННОСТИ --- */
+        .features {
+            padding: 60px 0;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #2e3547;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+
+        .card h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* --- КАК РАБОТАЕТ --- */
+        .how-it-works {
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .steps {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+
+        .step {
+            max-width: 250px;
+        }
+
+        .step-num {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+
+        /* --- ПОДВАЛ --- */
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid #2e3547;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Главный экран -->
+        <header>
+            <h1>YT Shorts Manager</h1>
+            <p class="subtitle">Мощный, быстрый и удобный загрузчик видео и Shorts с YouTube.</p>
+            
+            <a href="https://github.com/bestotarkov-max/YTShortsManager/releases/latest" class="btn-download">
+                📥 Скачать бесплатно
+            </a>
+            <span class="os-info">Для Windows 10 / 11 (x64) • Бесплатно • Open Source</span>
+        </header>
+
+        <!-- Скриншот (замени ссылку на свою, когда загрузишь картинку в GitHub) -->
+        <div class="screenshot-container">
+            <img src="https://github.com/bestotarkov-max/YTShortsManager/assets/твой_id/твой_скриншот.png" alt="Интерфейс программы">
+        </div>
+
+        <!-- Возможности -->
+        <section class="features">
+            <h2>Почему стоит выбрать нас?</h2>
+            <div class="grid">
+                <div class="card">
+                    <div class="card-icon">🚀</div>
+                    <h3>Высокое качество</h3>
+                    <p>Скачивайте видео в 4K, 1080p и 720p. Всегда со звуком и без потери качества.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🧠</div>
+                    <h3>Умный буфер</h3>
+                    <p>Просто скопируйте ссылку, и программа сама подставит её в нужное поле.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">📋</div>
+                    <h3>Очередь загрузок</h3>
+                    <p>Добавляйте сразу несколько ссылок, программа скачает их по очереди.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">✂️</div>
+                    <h3>Обрезка видео</h3>
+                    <p>Не нужно скачивать всё видео целиком — вырежьте только нужный фрагмент.</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🌍</div>
+                    <h3>Два языка</h3>
+                    <p>Полная поддержка русского и английского интерфейса (RU / EN).</p>
+                </div>
+                <div class="card">
+                    <div class="card-icon">🔄</div>
+                    <h3>Автообновление</h3>
+                    <p>Программа сама проверяет новые версии и обновляется в один клик.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Как это работает -->
+        <section class="how-it-works">
+            <h2>Как это работает?</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <h3>Скачайте</h3>
+                    <p>Нажмите кнопку выше и распакуйте ZIP-архив в удобную папку.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <h3>Запустите</h3>
+                    <p>Откройте YTShortsManager.exe. Программа свернется в трей.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <h3>Наслаждайтесь</h3>
+                    <p>Копируйте ссылки на видео, а программа сделает всё за вас.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Подвал -->
+        <footer>
+            <p>Сделано с душой 💙 Автором <a href="https://github.com/bestotarkov-max">IZYXxx</a></p>
+            <p style="margin-top: 10px;">
+                <a href="https://github.com/bestotarkov-max/YTShortsManager">Исходный код на GitHub</a> • 
+                <a href="https://github.com/bestotarkov-max/YTShortsManager/blob/main/LICENSE">Лицензия GPLv3</a>
+            </p>
+        </footer>
+    </div>
+
+</body>
+</html>
