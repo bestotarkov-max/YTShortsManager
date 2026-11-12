@@ -21,12 +21,7 @@
 В отличие от многих аналогов, приложение **не требует** установки Python, Node.js или дополнительных библиотек. Всё уже упаковано в один ZIP-архив.
 
 
-
-  <img src="<img width="812" height="1100" alt="image" src="https://github.com/user-attachments/assets/0625a3b9-a3fd-447b-b9e6-121336fdc161" />
-
-</p>
-
-
+  <<img width="812" height="1100" alt="image" src="https://github.com/user-attachments/assets/0625a3b9-a3fd-447b-b9e6-121336fdc161" />
 
 
 ## ✨ Основные возможности
