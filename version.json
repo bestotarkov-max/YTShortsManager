@@ -1,5 +1,5 @@
 {
-  "version": "1.2.3",
-  "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.2.3/YTSMv1.2.3.zip",
-  "changelog": "Исправлен баг с обновлением, теперь старая версия удаляется, а новая запускается сама. Умный буфер обмена теперь извлекает только ссылки."
+  "version": "1.0.0",
+  "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.0.0/YTShortsManager.exe",
+  "changelog": "Первая версия программы!"
 }
