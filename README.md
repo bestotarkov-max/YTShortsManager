@@ -3,6 +3,7 @@
 **Мощный, быстрый и удобный загрузчик видео с YouTube для Windows.**
 Разработано с душой 💙 Автор: [IZYXxx](https://github.com/bestotarkov-max)
 
+[![Security](https://img.shields.io/badge/Security-Origin_Protected-success?style=for-the-badge&logo=shield)](https://github.com/bestotarkov-max/YTShortsManager)
 [![Latest Release](https://img.shields.io/github/v/release/bestotarkov-max/YTShortsManager?style=for-the-badge&color=blue)](https://github.com/bestotarkov-max/YTShortsManager/releases/latest)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D7?style=for-the-badge&logo=windows)](https://github.com/bestotarkov-max/YTShortsManager)
 [![C#](https://img.shields.io/badge/C%23-WPF-purple?style=for-the-badge&logo=csharp)](https://github.com/bestotarkov-max/YTShortsManager)
