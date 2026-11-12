@@ -1,5 +1,5 @@
 {
-  "version": "1.2.2",
-  "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.2.2/YTSMv1.2.2.zip",
-  "changelog": "Исправлен баг с путями к ffmpeg (пробелы в названиях папок). Умный буфер обмена теперь извлекает только ссылки, игнорируя остальной текст."
+  "version": "1.2.3",
+  "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.2.3/YTSMv1.2.3.zip",
+  "changelog": "Исправлен баг с обновлением, теперь старая версия удаляется, а новая запускается сама. Умный буфер обмена теперь извлекает только ссылки."
 }
