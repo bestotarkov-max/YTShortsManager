@@ -2,7 +2,7 @@
 
 **Мощный, быстрый и удобный загрузчик видео с YouTube для Windows.**
 Разработано с душой 💙 Автор: [IZYXxx](https://github.com/bestotarkov-max)
-
+[![Скачать](https://img.shields.io/badge/📥_СКАЧАТЬ-Последняя_версия-red?style=for-the-badge)](https://github.com/bestotarkov-max/YTShortsManager/releases/latest)
 [![Latest Release](https://img.shields.io/github/v/release/bestotarkov-max/YTShortsManager?style=for-the-badge&color=blue)](https://github.com/bestotarkov-max/YTShortsManager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D7?style=for-the-badge&logo=windows)](https://github.com/bestotarkov-max/YTShortsManager)
 [![C#](https://img.shields.io/badge/C%23-WPF-purple?style=for-the-badge&logo=csharp)](https://github.com/bestotarkov-max/YTShortsManager)
@@ -16,8 +16,7 @@
 
 В отличие от многих аналогов, приложение **не требует** установки Python, Node.js или дополнительных библиотек. Всё уже упаковано в один исполняемый файл.
 
-<img width="796" height="1081" alt="image" src="https://github.com/user-attachments/assets/d75d9d9a-a35e-421c-a38f-92436890d772" />
-
+<img width="813" height="1100" alt="image" src="https://github.com/user-attachments/assets/0f4ab311-3cda-4346-836e-09c3dbb8372f" />
 Главное окно программы
 
 ---
