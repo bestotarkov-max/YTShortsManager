@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "YT Shorts Manager",
+  "version": "2.1",
+  "description": "Скачивание и обрезка видео с YouTube. Автор: IZYXxx",
+  "permissions": ["activeTab", "cookies"],
+  "host_permissions": [
+    "http://127.0.0.1:5000/*",
+    "*://*.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": { "16": "icon.png", "48": "icon.png", "128": "icon.png" }
+  },
+  "icons": { "16": "icon.png", "48": "icon.png", "128": "icon.png" },
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
