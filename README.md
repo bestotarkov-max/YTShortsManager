@@ -6,7 +6,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/bestotarkov-max/YTShortsManager?style=for-the-badge&color=blue)](https://github.com/bestotarkov-max/YTShortsManager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D7?style=for-the-badge&logo=windows)](https://github.com/bestotarkov-max/YTShortsManager)
 [![C#](https://img.shields.io/badge/C%23-WPF-purple?style=for-the-badge&logo=csharp)](https://github.com/bestotarkov-max/YTShortsManager)
-[![License](https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge)]([https://github.com/bestotarkov-max/YTShortsManager](https://github.com/bestotarkov-max/YTShortsManager/blob/main/LICENSE))
+[![License](https://img.shields.io/badge/License-GPLv3-green?style=for-the-badge)]([[https://github.com/bestotarkov-max/YTShortsManager](https://github.com/bestotarkov-max/YTShortsManager/blob/main/LICENSE)](https://github.com/bestotarkov-max/YTShortsManager/blob/main/LICENSE))
 
 ---
 
