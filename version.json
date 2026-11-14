@@ -1,6 +1,6 @@
 {
   "version": "1.5.0",
   "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.5.0/YTShortsManager-v1.5.0.zip",
-  "sha256": "5e4abcbaa13a19ede19fc5a0de6b12521caa32a4313a28adaed4fb5107bce0cb",
+  "sha256": "4e79fa4367fa7c4f864cb038852b3c417bbd21ad99c6234c6875149e50075b36",
   "changelog": "Новый современный интерфейс, полностью локализованные статусы и история, надёжное автообновление с проверкой SHA-256 и откатом, усиленная безопасность, исправлена загрузка с куки (BOM в файле cookies)."
 }
