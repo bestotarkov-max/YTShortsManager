@@ -2,7 +2,7 @@
 
 Приложение для Windows: скачивание и обрезка видео с YouTube (в первую очередь Shorts) — с расширением для браузера, очередью загрузок, историей и автообновлением.
 
-https://bestotarkov-max.github.io/YTShortsManager/#features
+[Сайт](https://bestotarkov-max.github.io/YTShortsManager/#top)
 
 **Автор:** IZYXxx
 **Версия:** 1.5.0
