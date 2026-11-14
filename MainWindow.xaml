@@ -3,34 +3,62 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="YT Shorts Manager" Height="880" Width="650"
-        Background="#0B0E14" Foreground="White"
+        Title="YT Shorts Manager" Height="720" Width="1000" MinHeight="600" MinWidth="860"
+        Background="{StaticResource AppBgBrush}" Foreground="{StaticResource AppTextBrush}"
+        FontFamily="Segoe UI Variable Display, Segoe UI"
+        TextOptions.TextFormattingMode="Ideal"
         WindowStartupLocation="CenterScreen" Closing="Window_Closing" StateChanged="Window_StateChanged"
         WindowStyle="None" ResizeMode="CanResize"
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         Icon="icon.ico">
 
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="35" ResizeBorderThickness="5" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+        <shell:WindowChrome CaptionHeight="46" ResizeBorderThickness="6" GlassFrameThickness="0"
+                            CornerRadius="0" UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
 
+    <Window.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetName="RootContent" Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1" Duration="0:0:0.30"/>
+                    <DoubleAnimation Storyboard.TargetName="RootContent"
+                                     Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                     From="14" To="0" Duration="0:0:0.42">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+
     <Window.Resources>
+
         <tb:TaskbarIcon x:Key="MyNotifyIcon" ToolTipText="YT Shorts Manager" TrayMouseDoubleClick="MyNotifyIcon_TrayMouseDoubleClick">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
-                    <MenuItem Header="Открыть программу" Click="MyNotifyIcon_TrayMouseDoubleClick"/>
-                    <MenuItem Header="Выход" Click="Exit_Click"/>
+                    <MenuItem Header="Открыть / Open" Click="MyNotifyIcon_TrayMouseDoubleClick"/>
+                    <MenuItem Header="Выход / Exit" Click="Exit_Click"/>
                 </ContextMenu>
             </tb:TaskbarIcon.ContextMenu>
         </tb:TaskbarIcon>
 
+        <!-- ============================================================
+             ТИТУЛ-БАР
+             ============================================================ -->
         <Style x:Key="WindowBtnStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#8892B0"/>
-            <Setter Property="Width" Value="45"/>
-            <Setter Property="Height" Value="35"/>
+            <Setter Property="Foreground" Value="#7D89A4"/>
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="46"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -39,8 +67,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bg" Property="Background" Value="#2E3547"/>
+                                <Setter TargetName="bg" Property="Background" Value="#182033"/>
                                 <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="#101622"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -57,7 +88,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bg" Property="Background" Value="#FF0033"/>
+                                <Setter TargetName="bg" Property="Background" Value="#E8113A"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -66,198 +97,729 @@
             </Setter>
         </Style>
 
+        <!-- ============================================================
+             КАРТОЧКИ И ПОДПИСИ
+             ============================================================ -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource AppCardBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="16"/>
+            <Setter Property="Padding" Value="16"/>
+        </Style>
+
+        <Style x:Key="SectionLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{StaticResource AppMutedBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- ============================================================
+             ПОЛЯ ВВОДА
+             ============================================================ -->
         <Style TargetType="TextBox">
-            <Setter Property="Background" Value="#1A1C23"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="10,8"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Background" Value="#0A0F19"/>
+            <Setter Property="Foreground" Value="#EAF0FF"/>
+            <Setter Property="BorderBrush" Value="#1E2739"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CaretBrush" Value="#FF4D6D"/>
+            <Setter Property="SelectionBrush" Value="#FF2D55"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="FontSize" Value="13.5"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8" BorderBrush="#2E3547" BorderThickness="1">
-                            <ScrollViewer x:Name="PART_ContentHost"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#2E3547"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="13"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10,8"/>
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="12"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"
+                                          HorizontalScrollBarVisibility="Hidden"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#3E4A63"/>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="#FF3355"/>
                             </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Opacity" Value="0.5"/>
+                            <Trigger Property="IsReadOnly" Value="True">
+                                <Setter TargetName="border" Property="BorderBrush" Value="Transparent"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+
+        <Style x:Key="ConsoleTextBox" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#8FE3B0"/>
+            <Setter Property="FontFamily" Value="Cascadia Mono, Consolas"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+        </Style>
+
+        <!-- ============================================================
+             КНОПКИ
+             ============================================================ -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#151C2A"/>
+            <Setter Property="Foreground" Value="#E8EEFB"/>
+            <Setter Property="BorderBrush" Value="#232D42"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,9"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="11">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="#1C2537"/>
+                                <Setter TargetName="bg" Property="BorderBrush" Value="#33405C"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="#111724"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PillButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Padding" Value="14,0"/>
+            <Setter Property="Height" Value="44"/>
+            <Setter Property="Background" Value="#131A28"/>
         </Style>
 
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="#FF0033"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Background" Value="{StaticResource AppAccentGradientBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Height" Value="50"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="8">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="15,12"/>
+                        <Border x:Name="bg" Background="{TemplateBinding Background}" CornerRadius="13"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="Scale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
+                            <Border.Effect>
+                                <DropShadowEffect Color="#FF0033" BlurRadius="22" ShadowDepth="0" Opacity="0.32"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="18,0"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#FF3355"/>
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource AppAccentGradientHoverBrush}"/>
                             </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource AppAccentGradientPressedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                            <EventTrigger RoutedEvent="MouseEnter">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX"
+                                                         To="1.012" Duration="0:0:0.12"/>
+                                        <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY"
+                                                         To="1.012" Duration="0:0:0.12"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                            <EventTrigger RoutedEvent="MouseLeave">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX"
+                                                         To="1" Duration="0:0:0.16"/>
+                                        <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY"
+                                                         To="1" Duration="0:0:0.16"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
+        <!-- ============================================================
+             ПРОГРЕСС
+             ============================================================ -->
         <Style TargetType="ProgressBar">
-            <Setter Property="Height" Value="8"/>
-            <Setter Property="Background" Value="#1A1C23"/>
-            <Setter Property="Foreground" Value="#00E676"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="Background" Value="#0A0F19"/>
+            <Setter Property="Foreground" Value="{StaticResource AppProgressGradientBrush}"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
-                            <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="4" HorizontalAlignment="Left"/>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5" ClipToBounds="True">
+                            <!-- PART_Track обязателен: без него WPF не считает ширину индикатора. -->
+                            <Grid x:Name="PART_Track">
+                                <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                                        CornerRadius="5" HorizontalAlignment="Left"/>
+                            </Grid>
                         </Border>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
 
+        <!-- ============================================================
+             ТУМБЛЕРЫ
+             ============================================================ -->
         <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#8892B0"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#C9D2E6"/>
+            <Setter Property="FontSize" Value="12.5"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Border x:Name="Card" Background="#0E1421" BorderBrush="{StaticResource AppBorderBrush}"
+                                BorderThickness="1" CornerRadius="12" Padding="13,10">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border x:Name="Track" Width="38" Height="21" CornerRadius="10.5"
+                                        Background="#242E43" VerticalAlignment="Center">
+                                    <Border x:Name="Knob" Width="15" Height="15" CornerRadius="7.5"
+                                            Background="#8A94AB" HorizontalAlignment="Left" Margin="3,0"/>
+                                </Border>
+                                <ContentPresenter Margin="10,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Card" Property="BorderBrush" Value="#2B3650"/>
+                                <Setter TargetName="Card" Property="Background" Value="#111827"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Track" Property="Background" Value="{StaticResource AppAccentGradientBrush}"/>
+                                <Setter TargetName="Knob" Property="Background" Value="White"/>
+                                <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="Knob" Property="Margin" Value="0,0,3,0"/>
+                                <Setter TargetName="Card" Property="BorderBrush" Value="#4A2030"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
+        <!-- ============================================================
+             COMBOBOX
+             ============================================================ -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" CornerRadius="7">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#243049"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#332030"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="BgBorder" Background="#0E1421" BorderBrush="{StaticResource AppBorderBrush}"
+                                                BorderThickness="1" CornerRadius="10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="24"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="1" Text="&#xE70D;"
+                                                           FontFamily="Segoe MDL2 Assets" FontSize="9"
+                                                           Foreground="#7D89A4"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="BgBorder" Property="Background" Value="#141C2B"/>
+                                                <Setter TargetName="BgBorder" Property="BorderBrush" Value="#2B3650"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="BgBorder" Property="BorderBrush" Value="#FF3355"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <ContentPresenter Margin="12,0,26,0"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Left"
+                                              IsHitTestVisible="False"/>
+
+                            <Popup x:Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Border Background="#101624" BorderBrush="#232D42" BorderThickness="1"
+                                        CornerRadius="10" MinWidth="{TemplateBinding ActualWidth}"
+                                        Margin="0,5,0,0" Padding="4">
+                                    <ScrollViewer SnapsToDevicePixels="True" MaxHeight="240">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============================================================
+             ОЧЕРЕДЬ
+             ============================================================ -->
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBox">
+                        <ScrollViewer Focusable="False" CanContentScroll="True" Padding="0,0,4,0">
+                            <ItemsPresenter/>
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                CornerRadius="9" Padding="9,6" Margin="0,1">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#151D2E"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#1A2336"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
     </Window.Resources>
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="35"/>
-            <RowDefinition Height="*"/> 
-        </Grid.RowDefinitions>
+    <Border Background="{StaticResource AppBgBrush}" BorderBrush="#141C2B" BorderThickness="1">
+        <Grid x:Name="RootContent" ClipToBounds="True" Opacity="0">
+            <Grid.RenderTransform>
+                <TranslateTransform Y="14"/>
+            </Grid.RenderTransform>
 
-        <Grid Grid.Row="0" Background="#151A25" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-            <TextBlock Text="YT Shorts Manager" Foreground="#8892B0" FontSize="12" VerticalAlignment="Center" Margin="15,0,0,0"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="—" Style="{StaticResource WindowBtnStyle}" Click="Minimize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-                <Button Content="🗖" Style="{StaticResource WindowBtnStyle}" Click="Maximize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-                <Button Content="✕" Style="{StaticResource CloseBtnStyle}" Click="Close_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-            </StackPanel>
-        </Grid>
+            <!-- Мягкие цветные пятна на фоне -->
+            <Ellipse Width="620" Height="620" Margin="-300,-330,0,0"
+                     HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#55FF0033" Offset="0"/>
+                        <GradientStop Color="#00FF0033" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
+            <Ellipse Width="560" Height="560" Margin="0,0,-260,-280"
+                     HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False">
+                <Ellipse.Fill>
+                    <RadialGradientBrush>
+                        <GradientStop Color="#331E5BFF" Offset="0"/>
+                        <GradientStop Color="#001E5BFF" Offset="1"/>
+                    </RadialGradientBrush>
+                </Ellipse.Fill>
+            </Ellipse>
 
-        <Grid Grid.Row="1" Margin="25">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/> <!-- 0 Заголовок -->
-                <RowDefinition Height="Auto"/> <!-- 1 URL -->
-                <RowDefinition Height="Auto"/> <!-- 2 Галочки -->
-                <RowDefinition Height="Auto"/> <!-- 3 Кнопка Скачать -->
-                <RowDefinition Height="Auto"/> <!-- 4 Прогресс-бар -->
-                <RowDefinition Height="Auto"/> <!-- 5 Очередь -->
-                <RowDefinition Height="Auto"/> <!-- 6 Папка -->
-                <RowDefinition Height="Auto"/> <!-- 7 НИЖНИЕ КНОПКИ -->
-                <RowDefinition Height="*"/>    <!-- 8 Логи -->
-            </Grid.RowDefinitions>
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="46"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="YouTube Downloader" FontSize="28" FontWeight="Black" 
-                       HorizontalAlignment="Center" Margin="0,0,0,15" Foreground="White">
-                <TextBlock.Effect>
-                    <DropShadowEffect Color="#FF0033" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
-                </TextBlock.Effect>
-            </TextBlock>
-
-            <Grid Grid.Row="1" Margin="0,0,0,5">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="UrlTextBox" VerticalContentAlignment="Center"/>
-                <Button x:Name="PasteButton" Content="Вставить" Grid.Column="1" Width="90" Margin="10,0,0,0" Click="PasteButton_Click"/>
-            </Grid>
-
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="5,0,0,10">
-                <CheckBox x:Name="ClipboardToggle" Content="Авто-вставка" IsChecked="True" Margin="0,0,20,0"/>
-                <CheckBox x:Name="StartupToggle" Content="Запускать с Windows" IsChecked="False"/>
-            </StackPanel>
-
-            <Button x:Name="DownloadButton" Grid.Row="3" Content="СКАЧАТЬ ВИДЕО" Style="{StaticResource PrimaryButton}" Click="DownloadButton_Click" Margin="0,0,0,10"/>
-
-            <Grid Grid.Row="4" Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <ProgressBar x:Name="DownloadProgress" VerticalAlignment="Center"/>
-                <TextBlock x:Name="ProgressText" Grid.Column="1" Text="0%" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#00E676" FontWeight="Bold" FontSize="14"/>
-            </Grid>
-
-            <!-- ОЧЕРЕДЬ ЗАГРУЗОК -->
-            <Border Grid.Row="5" Background="#151A25" CornerRadius="8" Padding="5" Margin="0,0,0,10" Height="80">
-                <ListBox x:Name="QueueList" Background="Transparent" BorderThickness="0" Foreground="#8892B0">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,2">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="{Binding Title}" Foreground="White" TextTrimming="CharacterEllipsis"/>
-                                <TextBlock Text="{Binding Status}" Grid.Column="1" Foreground="#00E676" Margin="10,0,0,0" FontSize="11"/>
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </Border>
-
-            <Border Grid.Row="6" Background="#151A25" CornerRadius="12" Padding="15" Margin="0,0,0,10">
-                <Grid>
+                <!-- ====================================================
+                     ТИТУЛ-БАР
+                     ==================================================== -->
+                <Grid Grid.Row="0" Background="#080C14" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Папка:" VerticalAlignment="Center" Foreground="#8892B0" FontSize="14" Margin="0,0,10,0"/>
-                    <TextBox x:Name="PathTextBox" Grid.Column="1" VerticalContentAlignment="Center"/>
-                    <Button Content="Обзор" Grid.Column="2" Width="80" Margin="10,0,0,0" Click="BrowseButton_Click"/>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                        <Border Width="26" Height="26" CornerRadius="8" Background="{StaticResource AppAccentGradientBrush}">
+                            <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="13"
+                                       Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <TextBlock Text="YT Shorts Manager" FontSize="12.5" FontWeight="SemiBold"
+                                   Foreground="#C9D2E6" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <Border Background="#121A29" BorderBrush="#222D42" BorderThickness="1"
+                                CornerRadius="6" Padding="7,2" Margin="9,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="VersionText" Text="v1.4.2" FontSize="10.5" Foreground="#7D89A4"/>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button Content="&#xE921;" Style="{StaticResource WindowBtnStyle}" Click="Minimize_Click"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button x:Name="MaximizeButton" Content="&#xE922;" Style="{StaticResource WindowBtnStyle}"
+                                Click="Maximize_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                        <Button Content="&#xE8BB;" Style="{StaticResource CloseBtnStyle}" Click="Close_Click"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                    </StackPanel>
                 </Grid>
-            </Border>
 
-            <!-- НИЖНИЕ КНОПКИ (ТЕПЕРЬ ОНИ ТОЧНО НА ВИДУ) -->
-            <Border Grid.Row="7" Background="#151A25" CornerRadius="8" Padding="10" Margin="0,0,0,10">
-                <WrapPanel HorizontalAlignment="Center">
-                    <Button x:Name="HistoryButton" Content="📜 История" Width="120" Click="HistoryButton_Click" Margin="5"/>
-                    <Button x:Name="ClearCacheButton" Content="🧹 Очистить кэш" Width="140" Click="ClearCacheButton_Click" Margin="5" Background="#883333"/>
-                    <Button x:Name="UpdateButton" Content="⬆️ Обновить yt-dlp" Width="150" Click="UpdateButton_Click" Margin="5" Background="#0055AA"/>
-                    <Button x:Name="AppUpdateButton" Content="📦 Обновить программу" Width="170" Click="AppUpdateButton_Click" Margin="5" Background="#006644"/>
-                </WrapPanel>
-            </Border>
+                <!-- ====================================================
+                     КОНТЕНТ
+                     ==================================================== -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly">
+                    <StackPanel Margin="28,22,20,24">
 
-            <Border Grid.Row="8" Background="#000000" CornerRadius="12" Padding="5" MinHeight="80">
-                <TextBox x:Name="LogTextBox" Background="Transparent" BorderThickness="0" Foreground="#00FF00" 
-                         FontFamily="Consolas" IsReadOnly="True" VerticalScrollBarVisibility="Auto" 
-                         TextWrapping="Wrap" Padding="10"/>
-            </Border>
+                        <!-- Заголовок -->
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel>
+                                <TextBlock x:Name="HeroKickerText" Text="СКАЧИВАЙ · ОБРЕЗАЙ · ГОТОВО"
+                                           FontSize="10.5" FontWeight="Bold" Foreground="#FF4D6D"/>
+                                <TextBlock Margin="0,6,0,0" FontSize="30" FontWeight="Black"
+                                           Foreground="{StaticResource AppTextBrush}">
+                                    <Run Text="YouTube"/><Run Text=" Downloader" Foreground="{StaticResource AppAccentBrush}"/>
+                                </TextBlock>
+                                <TextBlock x:Name="SubtitleText" Text="Shorts, видео и музыка — в один клик"
+                                           FontSize="13" Foreground="{StaticResource AppMutedBrush}" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="16,0,0,3">
+                                <TextBlock x:Name="LangLabel" VerticalAlignment="Center"
+                                           Foreground="{StaticResource AppMutedBrush}" FontSize="11.5" Margin="0,0,9,0"/>
+                                <ComboBox x:Name="LangCombo" Width="76" SelectionChanged="LangCombo_SelectionChanged">
+                                    <ComboBoxItem Content="RU"/>
+                                    <ComboBoxItem Content="EN"/>
+                                </ComboBox>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Две колонки -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.2*"/>
+                                <ColumnDefinition Width="18"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- ================= ЛЕВАЯ КОЛОНКА ================= -->
+                            <StackPanel Grid.Column="0">
+
+                                <!-- Ссылка -->
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock x:Name="LinkLabel" Text="ССЫЛКА НА ВИДЕО"
+                                                   Style="{StaticResource SectionLabel}"/>
+
+                                        <Grid Margin="0,9,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid>
+                                                <TextBox x:Name="UrlTextBox" Height="46" Padding="42,0,12,0"
+                                                         VerticalContentAlignment="Center"
+                                                         KeyDown="UrlTextBox_KeyDown"/>
+                                                <TextBlock Text="&#xE71B;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                           Foreground="#5A6580" VerticalAlignment="Center"
+                                                           Margin="15,0,0,0" IsHitTestVisible="False"/>
+                                                <TextBlock Text="https://youtube.com/watch?v=…" FontSize="13"
+                                                           Foreground="#46516B" VerticalAlignment="Center"
+                                                           Margin="42,0,12,0" IsHitTestVisible="False">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding ElementName=UrlTextBox, Path=Text}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
+
+                                            <Button x:Name="PasteButton" Grid.Column="1" Style="{StaticResource PillButton}"
+                                                    MinWidth="108" Margin="10,0,0,0" Click="PasteButton_Click"/>
+                                        </Grid>
+
+                                        <Button x:Name="DownloadButton" Style="{StaticResource PrimaryButton}"
+                                                Margin="0,11,0,0" Click="DownloadButton_Click"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Тумблеры -->
+                                <Grid Margin="0,10,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="10"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="ClipboardToggle" IsChecked="True"/>
+                                    <CheckBox x:Name="StartupToggle" Grid.Column="2" IsChecked="False"/>
+                                </Grid>
+
+                                <!-- Прогресс -->
+                                <Border Style="{StaticResource Card}" Margin="0,10,0,0" Padding="16,14">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock x:Name="ProgressLabel" Text="ПРОГРЕСС"
+                                                       Style="{StaticResource SectionLabel}"/>
+                                            <TextBlock x:Name="ProgressText" Text="0%" HorizontalAlignment="Right"
+                                                       VerticalAlignment="Center" Foreground="{StaticResource AppTextBrush}"
+                                                       FontWeight="Bold" FontSize="13"/>
+                                        </Grid>
+                                        <ProgressBar x:Name="DownloadProgress" Margin="0,9,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Папка -->
+                                <Border Style="{StaticResource Card}" Margin="0,10,0,0">
+                                    <StackPanel>
+                                        <TextBlock x:Name="FolderLabel" Style="{StaticResource SectionLabel}"/>
+
+                                        <Grid Margin="0,9,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid>
+                                                <TextBox x:Name="PathTextBox" Height="46" Padding="42,0,12,0"
+                                                         VerticalContentAlignment="Center"
+                                                         LostFocus="PathTextBox_LostFocus"/>
+                                                <TextBlock Text="&#xED25;" FontFamily="Segoe MDL2 Assets" FontSize="15"
+                                                           Foreground="#5A6580" VerticalAlignment="Center"
+                                                           Margin="15,0,0,0" IsHitTestVisible="False"/>
+                                            </Grid>
+
+                                            <Button x:Name="BrowseButton" Grid.Column="1" Style="{StaticResource PillButton}"
+                                                    MinWidth="98" Margin="10,0,0,0" Click="BrowseButton_Click"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Быстрые действия -->
+                                <Border Style="{StaticResource Card}" Margin="0,10,0,0" Padding="12">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Button x:Name="HistoryButton" Grid.Row="0" Grid.Column="0"
+                                                Height="38" FontSize="12" Margin="0,0,5,5"
+                                                Click="HistoryButton_Click"/>
+                                        <Button x:Name="ClearCacheButton" Grid.Row="0" Grid.Column="1"
+                                                Height="38" FontSize="12" Margin="5,0,0,5"
+                                                Click="ClearCacheButton_Click"/>
+                                        <Button x:Name="UpdateButton" Grid.Row="1" Grid.Column="0"
+                                                Height="38" FontSize="12" Margin="0,5,5,0"
+                                                Click="UpdateButton_Click"/>
+                                        <Button x:Name="AppUpdateButton" Grid.Row="1" Grid.Column="1"
+                                                Height="38" FontSize="12" Margin="5,5,0,0"
+                                                Click="AppUpdateButton_Click"/>
+                                    </Grid>
+                                </Border>
+
+                            </StackPanel>
+
+                            <!-- ================= ПРАВАЯ КОЛОНКА ================= -->
+                            <StackPanel Grid.Column="2">
+
+                                <!-- Очередь -->
+                                <Border Style="{StaticResource Card}" Height="240">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Grid>
+                                            <TextBlock x:Name="QueueLabel" Text="ОЧЕРЕДЬ ЗАГРУЗОК"
+                                                       Style="{StaticResource SectionLabel}"/>
+                                            <Border HorizontalAlignment="Right" Background="#152033"
+                                                    CornerRadius="7" Padding="8,2">
+                                                <TextBlock Text="{Binding ElementName=QueueList, Path=Items.Count}"
+                                                           FontSize="10.5" FontWeight="Bold" Foreground="#8FA0C4"/>
+                                            </Border>
+                                        </Grid>
+
+                                        <Grid Grid.Row="1" Margin="0,7,0,0">
+                                            <ListBox x:Name="QueueList">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                                <ColumnDefinition Width="Auto"/>
+                                                            </Grid.ColumnDefinitions>
+
+                                                            <Border x:Name="Dot" Width="7" Height="7" CornerRadius="4"
+                                                                    Background="#5A6580" VerticalAlignment="Center"/>
+
+                                                            <TextBlock Grid.Column="1" Text="{Binding Title}"
+                                                                       Foreground="#DDE5F7" FontSize="12"
+                                                                       Margin="10,0,10,0" VerticalAlignment="Center"
+                                                                       TextTrimming="CharacterEllipsis"/>
+
+                                                            <Border x:Name="Pill" Grid.Column="2" Background="#182234"
+                                                                    CornerRadius="8" Padding="9,3" VerticalAlignment="Center">
+                                                                <TextBlock x:Name="PillText" Text="{Binding StatusText}"
+                                                                           FontSize="10" FontWeight="SemiBold"
+                                                                           Foreground="#A9B4CC"/>
+                                                            </Border>
+                                                        </Grid>
+
+                                                        <DataTemplate.Triggers>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Downloading">
+                                                                <Setter TargetName="Dot" Property="Background" Value="#FF2D55"/>
+                                                                <Setter TargetName="Pill" Property="Background" Value="#3A1522"/>
+                                                                <Setter TargetName="PillText" Property="Foreground" Value="#FF8FA6"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Done">
+                                                                <Setter TargetName="Dot" Property="Background" Value="#22E07A"/>
+                                                                <Setter TargetName="Pill" Property="Background" Value="#10291F"/>
+                                                                <Setter TargetName="PillText" Property="Foreground" Value="#7CF0B4"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                                                <Setter TargetName="Dot" Property="Background" Value="#FF4D6D"/>
+                                                                <Setter TargetName="Pill" Property="Background" Value="#34131C"/>
+                                                                <Setter TargetName="PillText" Property="Foreground" Value="#FF9FB0"/>
+                                                            </DataTrigger>
+                                                        </DataTemplate.Triggers>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+
+                                            <TextBlock x:Name="QueueEmptyText"
+                                                       Text="Очередь пуста — добавьте ссылку слева"
+                                                       Foreground="#5A6580" FontSize="12"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                       TextWrapping="Wrap" TextAlignment="Center"
+                                                       IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding ElementName=QueueList, Path=HasItems}"
+                                                                         Value="False">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Журнал -->
+                                <Border Style="{StaticResource Card}" Margin="0,12,0,0" Height="268" Padding="0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <Grid Margin="16,13,16,9">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Ellipse Width="7" Height="7" Fill="{StaticResource AppSuccessBrush}"
+                                                         VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                <TextBlock x:Name="LogLabel" Text="ЖУРНАЛ" Style="{StaticResource SectionLabel}"/>
+                                            </StackPanel>
+                                            <TextBlock Text="app.log" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                       FontSize="10.5" Foreground="#4C5773"/>
+                                        </Grid>
+
+                                        <Border Grid.Row="1" Background="#070B12" CornerRadius="0,0,15,15" Padding="4">
+                                            <TextBox x:Name="LogTextBox" Style="{StaticResource ConsoleTextBox}"
+                                                     IsReadOnly="True" AcceptsReturn="True"
+                                                     TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
         </Grid>
-    </Grid>
+    </Border>
 </Window>

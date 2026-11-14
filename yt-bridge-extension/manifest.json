@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "YT Shorts Manager",
-  "version": "2.1",
+  "version": "2.3",
   "description": "Скачивание и обрезка видео с YouTube. Автор: IZYXxx",
-  "permissions": ["activeTab", "cookies"],
+  "permissions": ["cookies", "storage"],
   "host_permissions": [
     "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*",
     "*://*.youtube.com/*"
   ],
   "background": {

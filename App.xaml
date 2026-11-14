@@ -3,15 +3,110 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-        
-        <!-- СТИЛЬ ДЛЯ КОНТЕКСТНОГО МЕНЮ В ТРЕЕ -->
+
+        <!-- ============================================================
+             ПАЛИТРА
+             ============================================================ -->
+        <SolidColorBrush x:Key="AppBgBrush" Color="#070A11"/>
+        <SolidColorBrush x:Key="AppSurfaceBrush" Color="#0F1521"/>
+        <SolidColorBrush x:Key="AppBorderBrush" Color="#1C2537"/>
+        <SolidColorBrush x:Key="AppTextBrush" Color="#EDF2FF"/>
+        <SolidColorBrush x:Key="AppMutedBrush" Color="#7D89A4"/>
+        <SolidColorBrush x:Key="AppAccentBrush" Color="#FF2D55"/>
+        <SolidColorBrush x:Key="AppSuccessBrush" Color="#22E07A"/>
+        <SolidColorBrush x:Key="AppDangerBrush" Color="#FF4D6D"/>
+
+        <LinearGradientBrush x:Key="AppCardBrush" StartPoint="0,0" EndPoint="0,1">
+            <GradientStop Color="#121826" Offset="0"/>
+            <GradientStop Color="#0C111B" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="AppAccentGradientBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FF3B5C" Offset="0"/>
+            <GradientStop Color="#FF0033" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="AppAccentGradientHoverBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#FF5570" Offset="0"/>
+            <GradientStop Color="#FF1A45" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="AppAccentGradientPressedBrush" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#E32448" Offset="0"/>
+            <GradientStop Color="#D40027" Offset="1"/>
+        </LinearGradientBrush>
+
+        <LinearGradientBrush x:Key="AppProgressGradientBrush" StartPoint="0,0" EndPoint="1,0">
+            <GradientStop Color="#FF2D55" Offset="0"/>
+            <GradientStop Color="#FF8A00" Offset="1"/>
+        </LinearGradientBrush>
+
+        <!-- ============================================================
+             ТОНКИЙ СКРОЛЛБАР
+             ============================================================ -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="10"/>
+            <Setter Property="MinWidth" Value="10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Background="Transparent">
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" IsTabStop="False"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb MinHeight="26">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="ThumbBorder" Background="#2A3550" CornerRadius="3" Margin="3,2"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#3C4A6B"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#FF3355"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Opacity="0" Focusable="False" IsTabStop="False"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter TargetName="PART_Track" Property="Orientation" Value="Horizontal"/>
+                                <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Orientation" Value="Horizontal">
+                    <Setter Property="Width" Value="Auto"/>
+                    <Setter Property="MinWidth" Value="0"/>
+                    <Setter Property="Height" Value="10"/>
+                    <Setter Property="MinHeight" Value="10"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ============================================================
+             КОНТЕКСТНОЕ МЕНЮ В ТРЕЕ
+             ============================================================ -->
         <Style TargetType="ContextMenu">
-            <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="Background" Value="#151A25"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Background" Value="#101624"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#2E3547"/>
+            <Setter Property="BorderBrush" Value="#232D42"/>
             <Setter Property="Padding" Value="5"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -19,7 +114,7 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                CornerRadius="10" Padding="{TemplateBinding Padding}">
                             <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
                         </Border>
                     </ControlTemplate>
@@ -28,21 +123,21 @@
         </Style>
 
         <Style TargetType="MenuItem">
-            <Setter Property="OverridesDefaultStyle" Value="True" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#E8EEFB"/>
             <Setter Property="Padding" Value="15,8"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
-                        <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}" CornerRadius="7" Padding="{TemplateBinding Padding}">
                             <ContentPresenter ContentSource="Header" VerticalAlignment="Center" HorizontalAlignment="Left"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#2E3547"/>
+                                <Setter TargetName="Border" Property="Background" Value="#1D2739"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

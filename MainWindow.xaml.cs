@@ -1,16 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
+using System.ComponentModel;
+using System.Globalization;
 using System.IO;
-using System.IO.Compression;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Reflection;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,852 +12,802 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using System.Windows.Resources;
 using System.Windows.Threading;
-using Microsoft.Win32;
 using Hardcodet.Wpf.TaskbarNotification;
+using Microsoft.Win32;
+using YTShortsManager.Models;
+using YTShortsManager.Services;
 
 namespace YTShortsManager
 {
-    public class DownloadRequest
-    {
-        [JsonPropertyName("url")] public string Url { get; set; } = "";
-        [JsonPropertyName("action")] public string Action { get; set; } = "full";
-        [JsonPropertyName("start")] public int Start { get; set; } = 0;
-        [JsonPropertyName("end")] public int End { get; set; } = 0;
-        [JsonPropertyName("quality")] public string Quality { get; set; } = "best";
-        [JsonPropertyName("audio_only")] public bool AudioOnly { get; set; } = false;
-        [JsonPropertyName("subs")] public bool Subs { get; set; } = false;
-        [JsonPropertyName("thumb")] public bool Thumb { get; set; } = false;
-        [JsonPropertyName("sponsor")] public bool Sponsor { get; set; } = false;
-        [JsonPropertyName("playlist")] public bool Playlist { get; set; } = false;
-        [JsonPropertyName("cookies_data")] public string CookiesData { get; set; } = "";
-    }
-
-    public class AppConfig 
-    { 
-        public string DownloadFolder { get; set; } = ""; 
-        public string Language { get; set; } = "RU"; 
-    }
-    
-    public class HistoryItem
-    {
-        public string Title { get; set; } = "";
-        public string Path { get; set; } = "";
-        public string Time { get; set; } = "";
-        public string ThumbnailUrl { get; set; } = "";
-    }
-
-    public class UpdateInfo
-    {
-        [JsonPropertyName("version")] public string Version { get; set; } = "";
-        [JsonPropertyName("download_url")] public string DownloadUrl { get; set; } = "";
-        [JsonPropertyName("changelog")] public string Changelog { get; set; } = "";
-    }
-
     public partial class MainWindow : Window
     {
-        private TaskbarIcon? notifyIcon;
-        private string baseDir = Path.GetDirectoryName(Environment.ProcessPath) ?? AppDomain.CurrentDomain.BaseDirectory;
-        
-        private HttpListener? httpListener; // Вынесено для корректного закрытия
+        private const int MaxDownloadAttempts = 3;
 
-        private string ytdlpPath = "";
-        private string ffmpegPath = "";
-        private string denoPath = "";
-        private string configPath = "";
-        private string historyPath = "";
-        private string logPath = "";
-        private string downloadFolder = "";
+        /// <summary>
+        /// Максимум запросов в ожидании. Ограничение защищает от того,
+        /// что сторонняя страница/расширение завалит диск и память заданиями.
+        /// </summary>
+        private const int MaxQueueLength = 30;
 
-        private DispatcherTimer? clipboardTimer;
-        private string lastClipboardText = "";
+        private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan DoneItemLinger = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan FailedItemLinger = TimeSpan.FromSeconds(8);
 
-        private Queue<DownloadRequest> downloadQueue = new Queue<DownloadRequest>();
-        private ObservableCollection<QueueItem> queueUI = new ObservableCollection<QueueItem>();
-        private bool isProcessingQueue = false;
-        private readonly object queueLock = new object();
+        private static readonly Version CurrentVersion =
+            Assembly.GetExecutingAssembly().GetName().Version ?? new Version(1, 0, 0);
 
-        private string CurrentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
-        private const string UpdateCheckUrl = "https://raw.githubusercontent.com/bestotarkov-max/YTShortsManager/main/version.json";
+        private static readonly Regex ClipboardUrlRegex = new(
+            @"(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s]+)",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private Dictionary<string, Dictionary<string, string>> Locales = new Dictionary<string, Dictionary<string, string>>
-        {
-            { "RU", new Dictionary<string, string> {
-                { "DownloadBtn", "СКАЧАТЬ ВИДЕО" },
-                { "PasteBtn", "Вставить" },
-                { "FolderLabel", "Папка:" },
-                { "BrowseBtn", "Обзор" },
-                { "HistoryBtn", "📜 История" },
-                { "ClearCacheBtn", "🧹 Очистить кэш" },
-                { "UpdateYtdlpBtn", "⬆️ Обновить yt-dlp" },
-                { "UpdateAppBtn", "📦 Обновить программу" },
-                { "ClipboardToggle", "Авто-вставка" },
-                { "StartupToggle", "Запускать с Windows" },
-                { "ProgressText", "0%" },
-                { "LangLabel", "Язык / Language:" }
-            }},
-            { "EN", new Dictionary<string, string> {
-                { "DownloadBtn", "DOWNLOAD VIDEO" },
-                { "PasteBtn", "Paste" },
-                { "FolderLabel", "Folder:" },
-                { "BrowseBtn", "Browse" },
-                { "HistoryBtn", "📜 History" },
-                { "ClearCacheBtn", "🧹 Clear Cache" },
-                { "UpdateYtdlpBtn", "⬆️ Update yt-dlp" },
-                { "UpdateAppBtn", "📦 Update App" },
-                { "ClipboardToggle", "Auto-paste" },
-                { "StartupToggle", "Run on Windows Startup" },
-                { "ProgressText", "0%" },
-                { "LangLabel", "Language / Язык:" }
-            }}
-        };
-        private string currentLang = "RU";
+        private readonly DispatcherTimer _clipboardTimer = new() { Interval = TimeSpan.FromSeconds(1.5) };
+        private readonly CancellationTokenSource _lifetime = new();
+        private readonly ObservableCollection<QueueItem> _queueUi = new();
+        private readonly Queue<QueueEntry> _downloadQueue = new();
+        private readonly object _queueLock = new();
+        private readonly VideoInfoCache _videoInfoCache = new();
+
+        private TaskbarIcon? _notifyIcon;
+        private HttpBridgeServer? _bridge;
+        private AppConfig _config = new();
+
+        private bool _isProcessingQueue;
+        private bool _isExiting;
+        private bool _suppressLanguageChange;
+        private string _lastClipboardText = "";
 
         public MainWindow()
         {
             try
             {
                 InitializeComponent();
-                
-                notifyIcon = FindResource("MyNotifyIcon") as TaskbarIcon;
 
-                ytdlpPath = Path.Combine(baseDir, "yt-dlp.exe");
-                ffmpegPath = Path.Combine(baseDir, "ffmpeg.exe");
-                denoPath = Path.Combine(baseDir, "deno.exe");
-                configPath = Path.Combine(baseDir, "config.json");
-                historyPath = Path.Combine(baseDir, "history.json");
-                logPath = Path.Combine(baseDir, "app.log");
+                VersionText.Text = "v" + CurrentVersion.ToString(3);
 
-                if (QueueList != null) QueueList.ItemsSource = queueUI; 
+                _notifyIcon = FindResource("MyNotifyIcon") as TaskbarIcon;
+                QueueList.ItemsSource = _queueUi;
 
-                LoadConfig();
-                PathTextBox.Text = downloadFolder;
-                
-                LangCombo.SelectedIndex = currentLang == "EN" ? 1 : 0;
-                ApplyLanguage(currentLang);
+                _config = SettingsStore.Load(AppPaths.ConfigFile);
 
-                StartupToggle.IsChecked = IsStartupEnabled();
-                StartupToggle.Checked += (s, e) => SetStartup(true);
-                StartupToggle.Unchecked += (s, e) => SetStartup(false);
+                _suppressLanguageChange = true;
+                LangCombo.SelectedIndex = _config.Language == "EN" ? 1 : 0;
+                _suppressLanguageChange = false;
 
-                try
-                {
-                    if (notifyIcon != null)
-                    {
-                        Uri iconUri = new Uri("pack://application:,,,/icon.ico");
-                        this.Icon = new BitmapImage(iconUri);
-                        var streamInfo = System.Windows.Application.GetResourceStream(iconUri);
-                        if (streamInfo != null) notifyIcon.Icon = new System.Drawing.Icon(streamInfo.Stream);
-                    }
-                }
-                catch { if(notifyIcon != null) notifyIcon.Icon = System.Drawing.SystemIcons.Application; }
-                
-                StartSmartClipboard();
-                StartHttpServer();
+                ApplyLanguage(_config.Language);
+                PathTextBox.Text = _config.DownloadFolder;
+
+                StartupToggle.IsChecked = StartupManager.IsEnabled();
+                StartupToggle.Checked += StartupToggle_Changed;
+                StartupToggle.Unchecked += StartupToggle_Changed;
+
+                LoadWindowIcon();
+
+                // Подчищаем куки, оставшиеся после аварийного завершения прошлого запуска.
+                YtDlpService.CleanupLeftoverCookies(AppendLog);
+
+                _clipboardTimer.Tick += ClipboardTimer_Tick;
+                _clipboardTimer.Start();
+
+                StartBridge();
                 CheckDependencies();
-                AppendLog("Программа запущена. Версия " + CurrentVersion);
+
+                AppendLog("Программа запущена. Версия " + CurrentVersion.ToString(3));
             }
-            catch (Exception ex) { MessageBox.Show($"Критическая ошибка при запуске: {ex.Message}"); }
-        }
-
-        private void ApplyLanguage(string lang)
-        {
-            if (DownloadButton == null) return; 
-
-            currentLang = lang;
-            var t = Locales[lang];
-
-            DownloadButton.Content = t["DownloadBtn"];
-            PasteButton.Content = t["PasteBtn"];
-            FolderLabel.Text = t["FolderLabel"];
-            BrowseButton.Content = t["BrowseBtn"];
-            HistoryButton.Content = t["HistoryBtn"];
-            ClearCacheButton.Content = t["ClearCacheBtn"];
-            UpdateButton.Content = t["UpdateYtdlpBtn"];
-            AppUpdateButton.Content = t["UpdateAppBtn"];
-            ClipboardToggle.Content = t["ClipboardToggle"];
-            StartupToggle.Content = t["StartupToggle"];
-            LangLabel.Text = t["LangLabel"];
-        }
-
-        private void LangCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (LangCombo.SelectedItem is ComboBoxItem selectedItem)
+            catch (Exception ex)
             {
-                string lang = selectedItem.Content.ToString() ?? "RU";
-                ApplyLanguage(lang);
-                SaveConfig(); 
+                MessageBox.Show($"Критическая ошибка при запуске: {ex.Message}", "Ошибка запуска");
+            }
+        }
+
+        // =====================================================================
+        // Инициализация
+        // =====================================================================
+        private void LoadWindowIcon()
+        {
+            try
+            {
+                Uri iconUri = new("pack://application:,,,/icon.ico");
+                Icon = new BitmapImage(iconUri);
+
+                StreamResourceInfo? streamInfo = Application.GetResourceStream(iconUri);
+                if (streamInfo != null && _notifyIcon != null)
+                    _notifyIcon.Icon = new System.Drawing.Icon(streamInfo.Stream);
+            }
+            catch
+            {
+                if (_notifyIcon != null) _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+        }
+
+        private void StartBridge()
+        {
+            _bridge = new HttpBridgeServer(
+                request => Task.FromResult(EnqueueDownload(request)),
+                request => _videoInfoCache.GetDurationAsync(
+                    request.Url,
+                    token => YtDlpService.GetDurationAsync(
+                        request.Url, request.CookiesData, AppendLog, token),
+                    _lifetime.Token),
+                AppendLog);
+
+            if (!_bridge.Start())
+                ShowBalloon("Локальный сервер недоступен", "Кнопка в браузере не будет работать.", BalloonIcon.Warning);
+        }
+
+        private void CheckDependencies()
+        {
+            List<string> missing = new();
+            if (!File.Exists(AppPaths.YtDlp)) missing.Add("yt-dlp.exe");
+            if (!File.Exists(AppPaths.Ffmpeg)) missing.Add("ffmpeg.exe");
+            if (!File.Exists(AppPaths.Deno)) missing.Add("deno.exe");
+
+            if (missing.Count == 0)
+            {
+                AppendLog("✅ Все зависимости на месте.");
+                return;
+            }
+
+            AppendLog("⚠️ ВНИМАНИЕ: отсутствуют файлы: " + string.Join(", ", missing));
+            MessageBox.Show(
+                "В папке с программой не хватает важных файлов:\n\n" + string.Join("\n", missing) +
+                "\n\nБез них скачивание видео может работать неправильно.",
+                "Отсутствуют зависимости",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+
+        // =====================================================================
+        // Логирование и UI-поток
+        // =====================================================================
+        private void RunOnUi(Action action)
+        {
+            if (Dispatcher.CheckAccess()) action();
+            else Dispatcher.Invoke(action);
+        }
+
+        private void PostToUi(Action action)
+        {
+            if (Dispatcher.HasShutdownStarted || Dispatcher.HasShutdownFinished) return;
+
+            try
+            {
+                if (Dispatcher.CheckAccess()) action();
+                else Dispatcher.BeginInvoke(action);
+            }
+            catch (InvalidOperationException)
+            {
+                // Диспетчер уже остановлен — просто выходим.
             }
         }
 
         private void AppendLog(string message)
         {
-            string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
-            
-            Dispatcher.Invoke(() => {
-                if (LogTextBox != null)
+            string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
+            PostToUi(() => AppendLogCore(entry));
+            FileLog.Write(entry);
+        }
+
+        private void AppendLogCore(string entry)
+        {
+            if (LogTextBox == null) return;
+
+            LogTextBox.AppendText(entry + Environment.NewLine);
+
+            // Не даём текстовому полю расти до бесконечности.
+            const int maxLength = 200_000;
+            if (LogTextBox.Text.Length > maxLength)
+            {
+                LogTextBox.Text = LogTextBox.Text[^100_000..];
+                LogTextBox.CaretIndex = LogTextBox.Text.Length;
+            }
+
+            LogTextBox.ScrollToEnd();
+        }
+
+        private void ShowBalloon(string title, string message, BalloonIcon icon)
+        {
+            PostToUi(() => _notifyIcon?.ShowBalloonTip(title, message, icon));
+        }
+
+        // =====================================================================
+        // Локализация
+        // =====================================================================
+        private void ApplyLanguage(string language)
+        {
+            if (DownloadButton == null) return;
+
+            _config.Language = AppStrings.Normalize(language);
+            AppStrings.SetLanguage(_config.Language);
+            IReadOnlyDictionary<string, string> text = AppStrings.Get(_config.Language);
+
+            DownloadButton.Content = text["DownloadBtn"];
+            PasteButton.Content = text["PasteBtn"];
+            FolderLabel.Text = text["FolderLabel"];
+            BrowseButton.Content = text["BrowseBtn"];
+            HistoryButton.Content = text["HistoryBtn"];
+            ClearCacheButton.Content = text["ClearCacheBtn"];
+            UpdateButton.Content = text["UpdateYtdlpBtn"];
+            AppUpdateButton.Content = text["UpdateAppBtn"];
+            ClipboardToggle.Content = text["ClipboardToggle"];
+            StartupToggle.Content = text["StartupToggle"];
+            LangLabel.Text = text["LangLabel"];
+
+            HeroKickerText.Text = text["HeroKicker"];
+            SubtitleText.Text = text["Subtitle"];
+            LinkLabel.Text = text["LinkLabel"];
+            QueueLabel.Text = text["QueueLabel"];
+            QueueEmptyText.Text = text["QueueEmpty"];
+            ProgressLabel.Text = text["ProgressLabel"];
+            LogLabel.Text = text["LogLabel"];
+
+            foreach (QueueItem entry in _queueUi)
+                entry.RefreshStatus();
+        }
+
+        private void LangCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppressLanguageChange || LangCombo.SelectedItem is not ComboBoxItem item) return;
+
+            ApplyLanguage(item.Content?.ToString() ?? AppStrings.Default);
+            SettingsStore.Save(AppPaths.ConfigFile, _config);
+        }
+
+        // =====================================================================
+        // Очередь загрузок
+        // =====================================================================
+        /// <returns>false, если очередь переполнена и запрос отклонён.</returns>
+        private bool EnqueueDownload(DownloadRequest request)
+        {
+            QueueItem item = new()
+            {
+                Url = request.Url,
+                Title = request.Url,
+                Status = QueueStatus.Queued
+            };
+
+            // Коллекция ObservableCollection должна меняться только в UI-потоке.
+            RunOnUi(() => _queueUi.Add(item));
+
+            string outputFolder = _config.DownloadFolder;
+            int queueLength = 0;
+            bool overflow = false;
+            bool startWorker = false;
+
+            lock (_queueLock)
+            {
+                if (_downloadQueue.Count >= MaxQueueLength)
                 {
-                    LogTextBox.AppendText(logEntry + "\n");
-                    LogTextBox.ScrollToEnd();
+                    overflow = true;
                 }
-            });
-
-            try { File.AppendAllText(logPath, logEntry + Environment.NewLine); } catch { }
-        }
-
-        private void CheckDependencies()
-        {
-            List<string> missingFiles = new List<string>();
-
-            if (!File.Exists(ytdlpPath)) missingFiles.Add("yt-dlp.exe");
-            if (!File.Exists(ffmpegPath)) missingFiles.Add("ffmpeg.exe");
-            if (!File.Exists(denoPath)) missingFiles.Add("deno.exe");
-
-            if (missingFiles.Count > 0)
-            {
-                string msg = "ВНИМАНИЕ! В папке с программой не хватает важных файлов:\n\n" + 
-                             string.Join("\n", missingFiles) + 
-                             "\n\nБез них скачивание видео может работать неправильно.";
-                
-                MessageBox.Show(msg, "Отсутствуют зависимости", MessageBoxButton.OK, MessageBoxImage.Warning);
-                AppendLog("⚠️ ВНИМАНИЕ: Обнаружены отсутствующие зависимости!");
-            }
-            else
-            {
-                AppendLog("✅ Все зависимости на месте.");
-            }
-        }
-
-        private async void AppUpdateButton_Click(object sender, RoutedEventArgs e)
-        {
-            AppUpdateButton.IsEnabled = false;
-            AppendLog("Проверка обновлений программы...");
-
-            try
-            {
-                using (HttpClient client = new HttpClient())
+                else
                 {
-                    client.DefaultRequestHeaders.Add("User-Agent", "YTShortsManager");
-                    
-                    string json = await client.GetStringAsync(UpdateCheckUrl);
-                    var updateInfo = JsonSerializer.Deserialize<UpdateInfo>(json);
+                    _downloadQueue.Enqueue(new QueueEntry(request, item, outputFolder));
+                    queueLength = _downloadQueue.Count;
 
-                    if (updateInfo != null && new Version(updateInfo.Version) > new Version(CurrentVersion))
+                    if (!_isProcessingQueue)
                     {
-                        var result = MessageBox.Show($"Доступна новая версия {updateInfo.Version}!\n\n{updateInfo.Changelog}\n\nСкачать и обновить?", "Обновление", MessageBoxButton.YesNo, MessageBoxImage.Information);
-                        
-                        if (result == MessageBoxResult.Yes)
-                        {
-                            await DownloadAndUpdate(updateInfo.DownloadUrl);
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("У вас установлена последняя версия!", "Обновление");
-                    }
-                }
-            }
-            catch (Exception ex) { AppendLog($"Ошибка проверки обновлений: {ex.Message}"); }
-            finally { AppUpdateButton.IsEnabled = true; }
-        }
-
-        private async Task DownloadAndUpdate(string downloadUrl)
-        {
-            string zipPath = Path.Combine(baseDir, "update.zip");
-            string extractPath = Path.Combine(baseDir, "update_temp");
-            AppendLog("Скачивание новой версии программы (ZIP-архив)...");
-
-            try
-            {
-                using (HttpClient client = new HttpClient())
-                {
-                    byte[] bytes = await client.GetByteArrayAsync(downloadUrl);
-                    await File.WriteAllBytesAsync(zipPath, bytes);
-                }
-
-                AppendLog("Распаковка архива...");
-                
-                if (Directory.Exists(extractPath)) Directory.Delete(extractPath, true);
-                ZipFile.ExtractToDirectory(zipPath, extractPath);
-
-                string batPath = Path.Combine(baseDir, "update.bat");
-                string currentExe = Environment.ProcessPath ?? Path.Combine(baseDir, "YTShortsManager.exe");
-                
-                string batContent = $@"
-@echo off
-timeout /t 3 /nobreak >nul
-
-:wait_unlock
-del ""{currentExe}"" /F /Q >nul 2>&1
-if exist ""{currentExe}"" (
-    timeout /t 1 /nobreak >nul
-    goto wait_unlock
-)
-
-xcopy ""{extractPath}\*"" ""{baseDir}"" /E /I /Y /Q
-start """" ""{currentExe}""
-rmdir /s /q ""{extractPath}""
-del ""{zipPath}""
-del ""%~f0""
-";
-                File.WriteAllText(batPath, batContent);
-
-                Process.Start(new ProcessStartInfo { FileName = batPath, UseShellExecute = true, CreateNoWindow = true });
-                
-                Application.Current.Shutdown();
-                Environment.Exit(0); 
-            }
-            catch (Exception ex)
-            {
-                AppendLog($"Ошибка обновления: {ex.Message}");
-                MessageBox.Show("Не удалось скачать или распаковать обновление. Проверьте логи.");
-            }
-        }
-
-        private void ClearCacheButton_Click(object sender, RoutedEventArgs e)
-        {
-            var result = MessageBox.Show("Вы уверены, что хотите очистить историю скачиваний и удалить временные файлы (.part)?", "Очистка", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes) return;
-
-            try
-            {
-                if (File.Exists(historyPath)) File.Delete(historyPath);
-
-                if (Directory.Exists(downloadFolder))
-                {
-                    var partFiles = Directory.GetFiles(downloadFolder, "*.part", SearchOption.TopDirectoryOnly);
-                    foreach (var file in partFiles)
-                    {
-                        try { File.Delete(file); } catch { }
+                        _isProcessingQueue = true;
+                        startWorker = true;
                     }
                 }
-
-                AppendLog("🧹 Кэш и история успешно очищены.");
-                MessageBox.Show("Очистка завершена!", "Успех");
             }
-            catch (Exception ex) { AppendLog($"Ошибка очистки: {ex.Message}"); }
-        }
 
-        private void EnqueueDownload(DownloadRequest req)
-        {
-            var uiItem = new QueueItem { Url = req.Url, Title = "Загрузка данных...", Status = "В очереди" };
-            
-            Dispatcher.Invoke(() => queueUI.Add(uiItem));
-
-            lock (queueLock)
+            if (overflow)
             {
-                downloadQueue.Enqueue(req);
-                AppendLog($"➕ Добавлено в очередь. Всего: {downloadQueue.Count}");
+                PostToUi(() => _queueUi.Remove(item));
+                AppendLog($"⛔ Очередь переполнена ({MaxQueueLength}). Запрос отклонён: {request.Url}");
+                return false;
             }
 
-            if (!isProcessingQueue)
-            {
-                isProcessingQueue = true;
-                Task.Run(() => ProcessQueueAsync());
-            }
+            AppendLog($"➕ Добавлено в очередь. Всего: {queueLength}");
+
+            if (startWorker)
+                _ = Task.Run(ProcessQueueAsync);
+
+            return true;
         }
 
         private async Task ProcessQueueAsync()
         {
             while (true)
             {
-                DownloadRequest? req = null;
-                QueueItem? currentUiItem = null;
+                QueueEntry? entry;
 
-                lock (queueLock)
+                lock (_queueLock)
                 {
-                    if (downloadQueue.Count == 0)
+                    if (_downloadQueue.Count == 0)
                     {
-                        isProcessingQueue = false;
-                        Dispatcher.Invoke(() => { DownloadProgress.Value = 0; ProgressText.Text = "Готово"; });
-                        break;
-                    }
-                    req = downloadQueue.Dequeue();
-                }
-
-                Dispatcher.Invoke(() => {
-                    currentUiItem = queueUI.FirstOrDefault(x => x.Status == "В очереди");
-                    if (currentUiItem != null)
-                    {
-                        currentUiItem.Status = "Скачивается...";
-                        currentUiItem.Title = "Ссылка: " + req.Url; 
-                    }
-                    DownloadProgress.Value = 0; 
-                    ProgressText.Text = "0%"; 
-                    AppendLog($"▶ Начинаю скачивание: {req.Url}"); 
-                });
-
-                if (req != null)
-                {
-                    await Task.Run(() => RunYtDlpWithRetry(req));
-                }
-
-                Dispatcher.Invoke(() => {
-                    if (currentUiItem != null) queueUI.Remove(currentUiItem);
-                });
-            }
-        }
-
-        private void RunYtDlpWithRetry(DownloadRequest req)
-        {
-            int maxRetries = 3;
-            for (int attempt = 1; attempt <= maxRetries; attempt++)
-            {
-                try
-                {
-                    RunYtDlp(req);
-                    break; 
-                }
-                catch (Exception ex)
-                {
-                    if (attempt == maxRetries)
-                    {
-                        AppendLog($"❌ Все {maxRetries} попытки провалились для {req.Url}. Пропускаю.");
-                        break;
-                    }
-                    AppendLog($"⚠️ Ошибка: {ex.Message}. Повторная попытка {attempt}/{maxRetries} через 5 сек...");
-                    Thread.Sleep(5000);
-                }
-            }
-        }
-
-        private bool IsStartupEnabled()
-        {
-            try
-            {
-                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", false))
-                {
-                    return key?.GetValue("YTShortsManager") != null;
-                }
-            }
-            catch { return false; }
-        }
-
-        private void SetStartup(bool enable)
-        {
-            try
-            {
-                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true))
-                {
-                    if (key == null) return;
-                    
-                    if (enable)
-                    {
-                        string? exePath = Environment.ProcessPath;
-                        if (!string.IsNullOrEmpty(exePath)) key.SetValue("YTShortsManager", $"\"{exePath}\"");
-                        AppendLog("✅ Автозапуск включен.");
+                        _isProcessingQueue = false;
+                        entry = null;
                     }
                     else
                     {
-                        key.DeleteValue("YTShortsManager", false);
-                        AppendLog("❌ Автозапуск выключен.");
+                        entry = _downloadQueue.Dequeue();
                     }
                 }
+
+                if (entry == null)
+                {
+                    PostToUi(() =>
+                    {
+                        DownloadProgress.Value = 0;
+                        ProgressText.Text = AppStrings.Get(_config.Language)["Ready"];
+                    });
+                    break;
+                }
+
+                try
+                {
+                    await ProcessEntryAsync(entry).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    AppendLog($"❌ Непредвиденная ошибка: {ex.Message}");
+                }
             }
-            catch (Exception ex) { AppendLog($"Ошибка автозапуска: {ex.Message}"); }
         }
 
-        private void StartSmartClipboard()
+        private async Task ProcessEntryAsync(QueueEntry entry)
         {
-            clipboardTimer = new DispatcherTimer();
-            clipboardTimer.Interval = TimeSpan.FromSeconds(1.5);
-            clipboardTimer.Tick += ClipboardTimer_Tick;
-            clipboardTimer.Start();
+            QueueItem item = entry.Item;
+            DownloadRequest request = entry.Request;
+
+            PostToUi(() =>
+            {
+                item.Status = QueueStatus.Downloading;
+                DownloadProgress.Value = 0;
+                ProgressText.Text = "0%";
+            });
+
+            AppendLog($"▶ Начинаю скачивание: {request.Url}");
+
+            DownloadResult? result = null;
+
+            for (int attempt = 1; attempt <= MaxDownloadAttempts; attempt++)
+            {
+                try
+                {
+                    result = await YtDlpService.DownloadAsync(
+                            request,
+                            entry.OutputFolder,
+                            AppendLog,
+                            new ActionProgress(ReportProgress),
+                            _lifetime.Token)
+                        .ConfigureAwait(false);
+
+                    if (result.Success) break;
+                }
+                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    result = DownloadResult.Fail(ex.Message);
+                }
+
+                if (attempt >= MaxDownloadAttempts) break;
+                if (result is { Retryable: false }) break;
+
+                AppendLog($"⚠️ Попытка {attempt}/{MaxDownloadAttempts} не удалась: {result?.Error}. Повтор через {RetryDelay.TotalSeconds:0} сек...");
+
+                try
+                {
+                    await Task.Delay(RetryDelay, _lifetime.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
+
+            if (result is { Success: true })
+            {
+                string? filePath = result.FilePath;
+
+                PostToUi(() =>
+                {
+                    item.Status = QueueStatus.Done;
+                    DownloadProgress.Value = 100;
+                    ProgressText.Text = "100%";
+
+                    if (!string.IsNullOrEmpty(filePath))
+                        HistoryStore.Add(Path.GetFileName(filePath), filePath, request.Url);
+                });
+
+                AppendLog(string.IsNullOrEmpty(filePath)
+                    ? "✅ Загрузка завершена."
+                    : "✅ Загрузка завершена: " + filePath);
+
+                string balloonText = string.IsNullOrEmpty(filePath)
+                    ? "Видео скачано"
+                    : Path.GetFileName(filePath);
+                ShowBalloon("Загрузка завершена", balloonText, BalloonIcon.Info);
+                ScheduleRemoval(item, DoneItemLinger);
+                return;
+            }
+
+            string error = result?.Error ?? "неизвестная ошибка";
+
+            PostToUi(() => item.Status = QueueStatus.Failed);
+            AppendLog($"❌ Не удалось скачать {request.Url}: {error}");
+            ShowBalloon("Ошибка загрузки", error, BalloonIcon.Error);
+            ScheduleRemoval(item, FailedItemLinger);
         }
 
+        private void ScheduleRemoval(QueueItem item, TimeSpan delay)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(delay, _lifetime.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Программа закрывается — не важно.
+                }
+
+                PostToUi(() => _queueUi.Remove(item));
+            });
+        }
+
+        private void ReportProgress(double percent)
+        {
+            double value = Math.Clamp(percent, 0, 100);
+            PostToUi(() =>
+            {
+                DownloadProgress.Value = value;
+                ProgressText.Text = value.ToString("F1", CultureInfo.InvariantCulture) + "%";
+            });
+        }
+
+        /// <summary>
+        /// Читает путь из поля ввода, проверяет и сохраняет в конфиг.
+        /// Вызывается только из UI-потока (обращение к TextBox из фонового потока недопустимо).
+        /// </summary>
+        private string ApplyTypedFolder()
+        {
+            string typed = PathTextBox.Text?.Trim() ?? "";
+
+            if (!string.IsNullOrEmpty(typed) && Path.IsPathRooted(typed) &&
+                !string.Equals(typed, _config.DownloadFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                _config.DownloadFolder = typed;
+                PathTextBox.Text = typed;
+                SettingsStore.Save(AppPaths.ConfigFile, _config);
+            }
+
+            return _config.DownloadFolder;
+        }
+
+        // =====================================================================
+        // Обработчики кнопок
+        // =====================================================================
+        private void PasteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (Clipboard.ContainsText())
+                UrlTextBox.Text = Clipboard.GetText();
+        }
+
+        private void BrowseButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFolderDialog dialog = new();
+            if (dialog.ShowDialog() == true)
+            {
+                _config.DownloadFolder = dialog.FolderName;
+                PathTextBox.Text = _config.DownloadFolder;
+                SettingsStore.Save(AppPaths.ConfigFile, _config);
+            }
+        }
+
+        private void PathTextBox_LostFocus(object sender, RoutedEventArgs e) => ApplyTypedFolder();
+
+        private void DownloadButton_Click(object sender, RoutedEventArgs e) => StartDownloadFromUi();
+
+        private void UrlTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+            e.Handled = true;
+            StartDownloadFromUi();
+        }
+
+        private void StartDownloadFromUi()
+        {
+            string url = UrlTextBox.Text.Trim();
+
+            if (string.IsNullOrEmpty(url))
+            {
+                MessageBox.Show("Вставьте ссылку!", "Ссылка");
+                return;
+            }
+
+            if (!VideoUtils.IsValidYouTubeUrl(url))
+            {
+                MessageBox.Show("Поддерживаются только ссылки YouTube!", "Ссылка");
+                return;
+            }
+
+            UrlTextBox.Clear();
+            ApplyTypedFolder();
+
+            if (!EnqueueDownload(new DownloadRequest { Url = url }))
+            {
+                MessageBox.Show(
+                    $"Очередь переполнена (максимум {MaxQueueLength}).\nДождитесь окончания текущих загрузок.",
+                    "Очередь");
+            }
+        }
+
+        private async void UpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isProcessingQueue)
+            {
+                MessageBox.Show("Дождитесь окончания текущих загрузок.", "Обновление yt-dlp");
+                return;
+            }
+
+            UpdateButton.IsEnabled = false;
+            AppendLog("Скачивание новой версии yt-dlp...");
+
+            try
+            {
+                string path = await YtDlpService.UpdateYtDlpAsync(AppendLog, _lifetime.Token);
+                AppendLog("Файл: " + path);
+                MessageBox.Show("yt-dlp обновлён!", "Успех");
+            }
+            catch (OperationCanceledException)
+            {
+                // Программа закрывается.
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"❌ Ошибка обновления yt-dlp: {ex.Message}");
+                MessageBox.Show($"Не удалось обновить yt-dlp:\n\n{ex.Message}", "Ошибка");
+            }
+            finally
+            {
+                UpdateButton.IsEnabled = true;
+                UpdateButton.Content = AppStrings.Get(_config.Language)["UpdateYtdlpBtn"];
+            }
+        }
+
+        private async void AppUpdateButton_Click(object sender, RoutedEventArgs e)
+        {
+            AppUpdateButton.IsEnabled = false;
+
+            try
+            {
+                AppendLog("Проверка обновлений программы...");
+                UpdateInfo? update = await AppUpdateService.CheckAsync(CurrentVersion, _lifetime.Token);
+
+                if (update == null)
+                {
+                    MessageBox.Show("У вас установлена последняя версия!", "Обновление");
+                    return;
+                }
+
+                MessageBoxResult answer = MessageBox.Show(
+                    $"Доступна новая версия {update.Version}!\n\n{update.Changelog}\n\nСкачать и обновить?",
+                    "Обновление",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (answer != MessageBoxResult.Yes) return;
+
+                await AppUpdateService.ApplyAsync(update, AppendLog, _lifetime.Token);
+                ExitApplication();
+            }
+            catch (OperationCanceledException)
+            {
+                // Программа закрывается.
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Ошибка обновления программы: {ex.Message}");
+                MessageBox.Show($"Не удалось обновить программу:\n\n{ex.Message}", "Ошибка обновления");
+            }
+            finally
+            {
+                AppUpdateButton.IsEnabled = true;
+            }
+        }
+
+        private void HistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Применяем путь, введённый в поле, чтобы проверка папки была актуальной.
+            ApplyTypedFolder();
+
+            List<HistoryItem> history = HistoryStore.Load();
+
+            if (history.Count == 0)
+            {
+                MessageBox.Show("История пуста.", "История");
+                return;
+            }
+
+            HistoryWindow window = new(_config.Language)
+            {
+                Owner = this,
+                AllowedFolder = _config.DownloadFolder
+            };
+            window.HistoryList.ItemsSource = history;
+            window.ShowDialog();
+        }
+
+        private void ClearCacheButton_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult answer = MessageBox.Show(
+                "Очистить историю скачиваний и удалить временные файлы (.part, куки)?",
+                "Очистка",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (answer != MessageBoxResult.Yes) return;
+
+            try
+            {
+                HistoryStore.Clear();
+                YtDlpService.CleanupLeftoverCookies(AppendLog);
+
+                foreach (string pattern in new[] { "cookies_temp_*.txt", "*.part" })
+                {
+                    foreach (string file in Directory.GetFiles(AppPaths.BaseDir, pattern))
+                        TryDeleteFile(file);
+
+                    if (Directory.Exists(_config.DownloadFolder))
+                    {
+                        foreach (string file in Directory.GetFiles(_config.DownloadFolder, pattern))
+                            TryDeleteFile(file);
+                    }
+                }
+
+                if (Directory.Exists(AppPaths.DataDir))
+                {
+                    foreach (string file in Directory.GetFiles(AppPaths.DataDir, "*.part"))
+                        TryDeleteFile(file);
+                }
+
+                TryDeleteDirectory(Path.Combine(AppPaths.BaseDir, "update_temp"));
+                TryDeleteFile(Path.Combine(AppPaths.BaseDir, "update.zip"));
+
+                AppendLog("🧹 Кэш и история очищены.");
+                MessageBox.Show("Очистка завершена!", "Успех");
+            }
+            catch (Exception ex)
+            {
+                AppendLog($"Ошибка очистки: {ex.Message}");
+            }
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try { File.Delete(path); } catch { /* ignore */ }
+        }
+
+        private static void TryDeleteDirectory(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path)) Directory.Delete(path, true);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        private void StartupToggle_Changed(object sender, RoutedEventArgs e)
+        {
+            bool enable = StartupToggle.IsChecked == true;
+            string? error = StartupManager.Set(enable);
+
+            if (error != null)
+            {
+                AppendLog($"Ошибка автозапуска: {error}");
+                return;
+            }
+
+            AppendLog(enable ? "✅ Автозапуск включён." : "❌ Автозапуск выключен.");
+        }
+
+        // =====================================================================
+        // Буфер обмена
+        // =====================================================================
         private void ClipboardTimer_Tick(object? sender, EventArgs e)
         {
             if (ClipboardToggle.IsChecked != true) return;
 
             try
             {
-                if (Clipboard.ContainsText())
-                {
-                    string text = Clipboard.GetText().Trim();
-                    
-                    var urlMatch = Regex.Match(text, @"(https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s]+)");
-                    
-                    if (urlMatch.Success)
-                    {
-                        string cleanUrl = urlMatch.Value; 
+                if (!Clipboard.ContainsText()) return;
 
-                        if (cleanUrl != lastClipboardText && string.IsNullOrEmpty(UrlTextBox.Text))
-                        {
-                            lastClipboardText = cleanUrl;
-                            UrlTextBox.Text = cleanUrl;
-                            AppendLog("📋 Ссылка автоматически извлечена из буфера обмена.");
-                        }
-                    }
-                }
+                string text = Clipboard.GetText().Trim();
+                Match match = ClipboardUrlRegex.Match(text);
+
+                if (!match.Success) return;
+
+                string url = match.Value;
+
+                if (url == _lastClipboardText || !string.IsNullOrEmpty(UrlTextBox.Text)) return;
+
+                _lastClipboardText = url;
+                UrlTextBox.Text = url;
+                AppendLog("📋 Ссылка автоматически извлечена из буфера обмена.");
             }
-            catch { }
+            catch
+            {
+                // Буфер обмена может быть занят другим приложением.
+            }
         }
 
+        // =====================================================================
+        // Окно
+        // =====================================================================
         private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2) Maximize_Click(sender, e);
-            else this.DragMove();
+            else DragMove();
         }
 
-        private void Minimize_Click(object sender, RoutedEventArgs e) { this.WindowState = WindowState.Minimized; }
+        private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
-        private void Maximize_Click(object sender, RoutedEventArgs e)
+        private void Maximize_Click(object sender, RoutedEventArgs e) =>
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+
+        private void Close_Click(object sender, RoutedEventArgs e) => ExitApplication();
+
+        private void Window_StateChanged(object sender, EventArgs e)
         {
-            if (this.WindowState == WindowState.Maximized) this.WindowState = WindowState.Normal;
-            else this.WindowState = WindowState.Maximized;
+            if (MaximizeButton != null)
+                MaximizeButton.Content = WindowState == WindowState.Maximized ? "\uE923" : "\uE922";
+
+            if (WindowState == WindowState.Minimized) Hide();
         }
 
-        private void Close_Click(object sender, RoutedEventArgs e) { this.Close(); }
-
-        private void LoadConfig()
+        private void Window_Closing(object sender, CancelEventArgs e)
         {
+            SettingsStore.Save(AppPaths.ConfigFile, _config);
+            ExitApplication();
+        }
+
+        private void MyNotifyIcon_TrayMouseDoubleClick(object sender, RoutedEventArgs e) => ShowWindow();
+
+        private void Exit_Click(object sender, RoutedEventArgs e) => ExitApplication();
+
+        private void ShowWindow()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
+        }
+
+        private void ExitApplication()
+        {
+            if (_isExiting) return;
+            _isExiting = true;
+
+            _lifetime.Cancel();
+            YtDlpService.KillRunningProcesses();
+            _clipboardTimer.Stop();
+            _bridge?.Dispose();
+
             try
             {
-                if (File.Exists(configPath))
-                {
-                    var json = File.ReadAllText(configPath);
-                    var cfg = JsonSerializer.Deserialize<AppConfig>(json);
-                    if (!string.IsNullOrEmpty(cfg?.DownloadFolder)) downloadFolder = cfg.DownloadFolder;
-                    if (!string.IsNullOrEmpty(cfg?.Language)) currentLang = cfg.Language;
-                }
-            } catch { }
-            if (string.IsNullOrEmpty(downloadFolder))
-                downloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "YT_Shorts");
-        }
-
-        private void SaveConfig()
-        {
-            try { File.WriteAllText(configPath, JsonSerializer.Serialize(new AppConfig { DownloadFolder = downloadFolder, Language = currentLang })); } catch { }
-        }
-
-        private void Window_StateChanged(object sender, EventArgs e) 
-        { 
-            if (WindowState == WindowState.Minimized) this.Hide(); 
-        }
-
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e) 
-        { 
-            try { httpListener?.Stop(); httpListener?.Close(); } catch { }
-            notifyIcon?.Dispose(); 
-            Application.Current.Shutdown(); 
-        }
-
-        private void MyNotifyIcon_TrayMouseDoubleClick(object sender, RoutedEventArgs e) { this.Show(); this.WindowState = WindowState.Normal; }
-        
-        private void Exit_Click(object sender, RoutedEventArgs e) 
-        { 
-            try { httpListener?.Stop(); httpListener?.Close(); } catch { }
-            notifyIcon?.Dispose(); 
-            Application.Current.Shutdown(); 
-        }
-        
-        private void PasteButton_Click(object sender, RoutedEventArgs e) { if (Clipboard.ContainsText()) UrlTextBox.Text = Clipboard.GetText(); }
-        
-        private void BrowseButton_Click(object sender, RoutedEventArgs e)
-        {
-            var dialog = new OpenFolderDialog();
-            if (dialog.ShowDialog() == true) { downloadFolder = dialog.FolderName; PathTextBox.Text = downloadFolder; SaveConfig(); }
-        }
-
-        private void DownloadButton_Click(object sender, RoutedEventArgs e)
-        {
-            string url = UrlTextBox.Text.Trim();
-            if (string.IsNullOrEmpty(url)) { MessageBox.Show("Вставьте ссылку!"); return; }
-
-            UrlTextBox.Clear();
-            var req = new DownloadRequest { Url = url };
-            EnqueueDownload(req);
-        }
-
-        private void AddToHistory(string title, string path, string videoUrl)
-        {
-            try
-            {
-                List<HistoryItem> history = new List<HistoryItem>();
-                if (File.Exists(historyPath))
-                {
-                    var json = File.ReadAllText(historyPath);
-                    history = JsonSerializer.Deserialize<List<HistoryItem>>(json) ?? new List<HistoryItem>();
-                }
-
-                string videoId = VideoUtils.ExtractVideoId(videoUrl);
-                string thumbUrl = !string.IsNullOrEmpty(videoId) ? $"https://img.youtube.com/vi/{videoId}/mqdefault.jpg" : "";
-
-                history.Insert(0, new HistoryItem { 
-                    Title = title, Path = path, Time = DateTime.Now.ToString("yyyy-MM-dd HH:mm"), ThumbnailUrl = thumbUrl
-                });
-                
-                if (history.Count > 50) history.RemoveAt(history.Count - 1);
-                File.WriteAllText(historyPath, JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true }));
-            } catch { }
-        }
-
-        private void HistoryButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (!File.Exists(historyPath)) { MessageBox.Show("История пуста."); return; }
-            
-            try
-            {
-                List<HistoryItem>? history = JsonSerializer.Deserialize<List<HistoryItem>>(File.ReadAllText(historyPath));
-                HistoryWindow historyWindow = new HistoryWindow();
-                historyWindow.Owner = this; 
-                if (history != null) historyWindow.HistoryList.ItemsSource = history; 
-                historyWindow.ShowDialog();
+                _notifyIcon?.Dispose();
             }
-            catch (Exception ex) { MessageBox.Show("Ошибка чтения истории: " + ex.Message); }
-        }
-
-        private async void UpdateButton_Click(object sender, RoutedEventArgs e)
-        {
-            UpdateButton.IsEnabled = false;
-            UpdateButton.Content = "Обновление...";
-            AppendLog("Скачивание новой версии yt-dlp...");
-
-            try
+            catch
             {
-                using (HttpClient client = new HttpClient())
-                {
-                    string newExe = Path.Combine(baseDir, "yt-dlp-new.exe");
-                    byte[] fileBytes = await client.GetByteArrayAsync("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe");
-                    await File.WriteAllBytesAsync(newExe, fileBytes);
-                    
-                    if (File.Exists(ytdlpPath)) File.Delete(ytdlpPath);
-                    File.Move(newExe, ytdlpPath);
-                    
-                    AppendLog("✅ yt-dlp успешно обновлен!");
-                    MessageBox.Show("yt-dlp обновлен!", "Успех");
-                }
-            }
-            catch (Exception ex) { AppendLog($"❌ Ошибка обновления: {ex.Message}"); }
-            
-            UpdateButton.IsEnabled = true;
-            UpdateButton.Content = Locales[currentLang]["UpdateYtdlpBtn"];
-        }
-
-        private string GetVideoDuration(string url, string cookiesData)
-        {
-            if (!File.Exists(ytdlpPath)) return "0";
-            try
-            {
-                string args = $"--skip-download --print \"%(duration)s\" \"{url}\"";
-                
-                if (!string.IsNullOrEmpty(cookiesData))
-                {
-                    string tempCookieFile = Path.Combine(baseDir, "cookies_temp.txt");
-                    File.WriteAllText(tempCookieFile, cookiesData);
-                    args += $" --cookies \"{tempCookieFile}\"";
-                }
-
-                ProcessStartInfo psi = new ProcessStartInfo
-                {
-                    FileName = ytdlpPath, Arguments = args,
-                    RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true, StandardOutputEncoding = Encoding.UTF8
-                };
-                
-                using (Process? p = Process.Start(psi))
-                {
-                    if (p != null)
-                    {
-                        string output = p.StandardOutput.ReadToEnd().Trim(); 
-                        p.WaitForExit();
-                        if (int.TryParse(output, out int res)) return output;
-                    }
-                }
-            } catch { }
-            return "0";
-        }
-
-        private void RunYtDlp(DownloadRequest req)
-        {
-            if (!File.Exists(ytdlpPath)) { throw new FileNotFoundException("yt-dlp.exe не найден!"); }
-            
-            bool hasFfmpeg = File.Exists(ffmpegPath);
-            bool hasDeno = File.Exists(denoPath);
-
-            Directory.CreateDirectory(downloadFolder);
-            string args = "";
-
-            if (hasDeno) args += $"--js-runtimes deno:\"{denoPath}\" ";
-            if (!req.Playlist) args += "--no-playlist ";
-            
-            if (req.AudioOnly) args += "-x --audio-format mp3 --audio-quality 0 ";
-            else if (req.Quality == "best") args += "-f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\" ";
-            else args += $"-f \"bestvideo[height<={req.Quality}][ext=mp4]+bestaudio[ext=m4a]/best[height<={req.Quality}][ext=mp4]/best\" ";
-
-            if (req.Subs) args += "--write-subs --write-auto-subs --sub-langs \"ru,en\" --convert-subs srt ";
-            if (req.Thumb) args += "--write-thumbnail --convert-thumbnails jpg ";
-            if (req.Sponsor) args += "--sponsorblock-remove sponsor,intro,outro,selfpromo,interaction ";
-
-            if (!string.IsNullOrEmpty(req.CookiesData))
-            {
-                string cookieFile = Path.Combine(baseDir, "cookies.txt");
-                File.WriteAllText(cookieFile, req.CookiesData);
-                args += $"--cookies \"{cookieFile}\" ";
+                // ignore
             }
 
-            if (req.Action == "trim" && req.End > 0) args += $"--download-sections \"*{req.Start}-{req.End}\" ";
-
-            string outtmpl = req.Playlist ? "%(playlist_index)s - %(title)s.%(ext)s" : "%(title)s.%(ext)s";
-            args += $"-o \"{Path.Combine(downloadFolder, outtmpl)}\" ";
-            
-            if (hasFfmpeg) args += $"--ffmpeg-location \"{ffmpegPath}\" ";
-            
-            args += $"--merge-output-format mp4 \"{req.Url}\"";
-
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                FileName = ytdlpPath, Arguments = args,
-                RedirectStandardOutput = true, RedirectStandardError = true,
-                UseShellExecute = false, CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
-            };
-
-            psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
-
-            string lastFilePath = "";
-            Regex progressRegex = new Regex(@"\[download\]\s+(\d+\.?\d*)%");
-            Regex mergerRegex = new Regex(@"\[Merger\] Merging formats into ""(.+)""");
-            bool hasError = false;
-
-            using (Process? process = new Process { StartInfo = psi })
-            {
-                if (process == null) throw new Exception("Не удалось запустить yt-dlp");
-
-                process.OutputDataReceived += (s, ev) => {
-                    if (string.IsNullOrEmpty(ev.Data)) return;
-                    Dispatcher.Invoke(() => AppendLog(ev.Data)); 
-
-                    var match = progressRegex.Match(ev.Data);
-                    if (match.Success && double.TryParse(match.Groups[1].Value, out double percent))
-                    {
-                        Dispatcher.Invoke(() => { DownloadProgress.Value = percent; ProgressText.Text = $"{percent:F1}%"; });
-                    }
-
-                    var mMatch = mergerRegex.Match(ev.Data);
-                    if (mMatch.Success) lastFilePath = mMatch.Groups[1].Value;
-                };
-                
-                process.ErrorDataReceived += (s, ev) => {
-                    if (!string.IsNullOrEmpty(ev.Data)) 
-                    {
-                        if (ev.Data.Contains("frame=") || 
-                            ev.Data.Contains("Stream mapping:") || 
-                            ev.Data.Contains("Metadata:") || 
-                            ev.Data.Contains("Duration:") || 
-                            ev.Data.StartsWith("  Stream #") || 
-                            ev.Data.StartsWith("Input #") || 
-                            ev.Data.StartsWith("Output #") ||
-                            ev.Data.Contains("Press [q]") ||
-                            ev.Data.Contains("encoder         :")) 
-                        {
-                            return; 
-                        }
-
-                        Dispatcher.Invoke(() => AppendLog(ev.Data));
-                        if (ev.Data.Contains("ERROR:")) hasError = true; 
-                    }
-                };
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-                process.WaitForExit();
-
-                if (process.ExitCode != 0) 
-                {
-                    hasError = true;
-                    Dispatcher.Invoke(() => AppendLog($"[yt-dlp] Процесс завершился с кодом {process.ExitCode}"));
-                }
-            }
-
-            if (hasError) throw new Exception("Сбой yt-dlp (см. логи).");
-
-            Dispatcher.Invoke(() => {
-                AppendLog("✅ Процесс завершен!");
-                DownloadProgress.Value = 100;
-                ProgressText.Text = "100%";
-                
-                if (!string.IsNullOrEmpty(lastFilePath))
-                    AddToHistory(Path.GetFileName(lastFilePath), lastFilePath, req.Url);
-
-                notifyIcon?.ShowBalloonTip("Загрузка завершена", "Видео успешно скачано!", BalloonIcon.Info);
-            });
-        }
-
-        private async void StartHttpServer()
-        {
-            await Task.Run(() =>
-            {
-                httpListener = new HttpListener();
-                httpListener.Prefixes.Add("http://127.0.0.1:5000/");
-                try
-                {
-                    httpListener.Start();
-                    Dispatcher.Invoke(() => AppendLog("Сервер для расширения запущен на порту 5000."));
-
-                    while (true)
-                    {
-                        HttpListenerContext context = httpListener.GetContext();
-                        HttpListenerRequest request = context.Request;
-                        
-                        string origin = request.Headers["Origin"];
-                        if (string.IsNullOrEmpty(origin) || 
-                            (!origin.StartsWith("chrome-extension://") && !origin.StartsWith("moz-extension://")))
-                        {
-                            context.Response.StatusCode = 403;
-                            context.Response.Close();
-                            continue;
-                        }
-
-                        string responseJson = "{\"status\": \"success\"}";
-                        context.Response.Headers.Add("Access-Control-Allow-Origin", "*");
-                        context.Response.ContentType = "application/json";
-
-                        if (request.HttpMethod == "POST")
-                        {
-                            using (StreamReader reader = new StreamReader(request.InputStream, request.ContentEncoding))
-                            {
-                                string body = reader.ReadToEnd();
-                                var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
-                                if (request.Url.AbsolutePath == "/download")
-                                {
-                                    try {
-                                        var req = JsonSerializer.Deserialize<DownloadRequest>(body, options);
-                                        if (req != null)
-                                        {
-                                            Dispatcher.Invoke(() => AppendLog($"Запрос из браузера: {req.Url}"));
-                                            EnqueueDownload(req);
-                                        }
-                                    } catch (Exception ex) { Dispatcher.Invoke(() => AppendLog($"Ошибка парсинга: {ex.Message}")); }
-                                }
-                                else if (request.Url.AbsolutePath == "/get_info")
-                                {
-                                    try
-                                    {
-                                        var req = JsonSerializer.Deserialize<DownloadRequest>(body, options);
-                                        if (req != null)
-                                        {
-                                            string duration = GetVideoDuration(req.Url, req.CookiesData); 
-                                            responseJson = $"{{\"status\": \"success\", \"duration\": {duration}}}";
-                                        }
-                                    }
-                                    catch { responseJson = "{\"status\": \"error\"}"; }
-                                }
-                            }
-                        }
-
-                        byte[] buffer = Encoding.UTF8.GetBytes(responseJson);
-                        context.Response.OutputStream.Write(buffer, 0, buffer.Length);
-                        context.Response.Close();
-                    }
-                }
-                catch (Exception ex) 
-                { 
-                    if (ex is HttpListenerException && ex.Message.Contains("aborted")) return;
-                    Dispatcher.Invoke(() => AppendLog("Ошибка сервера: " + ex.Message)); 
-                }
-            });
+            Application.Current.Shutdown();
         }
     }
 }

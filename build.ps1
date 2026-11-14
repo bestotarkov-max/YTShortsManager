@@ -1,38 +1,144 @@
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Скрипт всегда работает от корня проекта, даже если запущен из другой папки.
+Set-Location -LiteralPath $PSScriptRoot
+
 Write-Host "=== СБОРКА YT SHORTS MANAGER ===" -ForegroundColor Cyan
+Write-Host ""
 
-Write-Host "[1/4] Очистка старых файлов..." -ForegroundColor Yellow
+# ============================================================
+# 0. ПРОВЕРКА СТРУКТУРЫ ПРОЕКТА
+# ============================================================
+Write-Host "[0/5] Проверка структуры проекта..." -ForegroundColor Yellow
+
+$projectRoot = Get-Location
+$extensionPath = Join-Path $projectRoot "yt-bridge-extension"
+$extensionExists = Test-Path $extensionPath
+
+# Обязательные утилиты
+$requiredUtils = @("yt-dlp.exe", "ffmpeg.exe", "deno.exe", "icon.ico")
+$missingUtils = @()
+foreach ($file in $requiredUtils) {
+    if (-not (Test-Path (Join-Path $projectRoot $file))) { $missingUtils += $file }
+}
+
+# Обязательные файлы расширения
+$extensionRequiredFiles = @("manifest.json", "background.js", "content.js", "icon.png")
+$missingExtFiles = @()
+if ($extensionExists) {
+    foreach ($file in $extensionRequiredFiles) {
+        if (-not (Test-Path (Join-Path $extensionPath $file))) {
+            $missingExtFiles += $file
+        }
+    }
+}
+
+# Вывод результатов проверки
+if ($missingUtils.Count -gt 0) {
+    Write-Host "⚠️  Не найдены утилиты: $($missingUtils -join ', ')" -ForegroundColor Red
+    Write-Host "    Программа будет работать неправильно без них!" -ForegroundColor Red
+} else {
+    Write-Host "✅ Все утилиты на месте." -ForegroundColor Green
+}
+
+if (-not $extensionExists) {
+    Write-Host "⚠️  Папка 'yt-bridge-extension' не найдена в корне проекта!" -ForegroundColor Red
+    Write-Host "    Положите её в корень рядом с .csproj, иначе расширение НЕ попадёт в архив." -ForegroundColor Red
+} elseif ($missingExtFiles.Count -gt 0) {
+    Write-Host "⚠️  В 'yt-bridge-extension' не хватает: $($missingExtFiles -join ', ')" -ForegroundColor Red
+} else {
+    Write-Host "✅ Папка расширения найдена и укомплектована." -ForegroundColor Green
+}
+
+Write-Host ""
+
+# ============================================================
+# 1. ОЧИСТКА СТАРЫХ ФАЙЛОВ
+# ============================================================
+Write-Host "[1/5] Очистка старых файлов..." -ForegroundColor Yellow
 if (Test-Path "bin\Release") { Remove-Item -Path "bin\Release" -Recurse -Force }
+if (Test-Path "obj") { Remove-Item -Path "obj" -Recurse -Force }
 
-Write-Host "[2/4] Сборка программы (это займет около минуты)..." -ForegroundColor Yellow
+# ============================================================
+# 2. СБОРКА ПРОГРАММЫ
+# ============================================================
+Write-Host "[2/5] Сборка программы (займёт около минуты)..." -ForegroundColor Yellow
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ Сборка .NET завершилась с ошибкой (код $LASTEXITCODE)!" -ForegroundColor Red
+    Pause
+    exit 1
+}
 
 $publishDir = Get-ChildItem -Path "bin\Release" -Recurse -Directory | Where-Object { $_.Name -eq "publish" } | Select-Object -First 1
 if (-not $publishDir) {
     Write-Host "❌ Не удалось найти папку publish!" -ForegroundColor Red
     Pause
-    exit
+    exit 1
 }
 $publishPath = $publishDir.FullName
 Write-Host "📁 Папка сборки: $publishPath" -ForegroundColor Green
+Write-Host ""
 
-Write-Host "[3/4] Копирование утилит..." -ForegroundColor Yellow
-$filesToCopy = @("yt-dlp.exe", "ffmpeg.exe", "deno.exe", "icon.ico")
-foreach ($file in $filesToCopy) {
-    if (Test-Path $file) {
-        Copy-Item -Path $file -Destination $publishPath -Force
-        Write-Host "✅ Скопирован: $file" -ForegroundColor Green
-    } else {
-        Write-Host "❌ НЕ НАЙДЕН: $file" -ForegroundColor Red
+# ============================================================
+# 3. КОПИРОВАНИЕ УТИЛИТ, РАСШИРЕНИЯ И ОЧИСТКА ОТ МУСОРА
+# ============================================================
+Write-Host "[3/5] Копирование утилит и расширения..." -ForegroundColor Yellow
+
+# Удаляем временные файлы, если они случайно попали в сборку
+$junkFiles = @("cookies.txt", "cookies_temp.txt", "app.log", "config.json", "history.json", "update.zip", "update.bat", "update.ps1")
+foreach ($junk in $junkFiles) {
+    $junkPath = Join-Path $publishPath $junk
+    if (Test-Path $junkPath) {
+        Remove-Item -Path $junkPath -Force -ErrorAction SilentlyContinue
+        Write-Host "🧹 Удалён мусор: $junk" -ForegroundColor DarkGray
     }
 }
 
-if (Test-Path "yt-bridge-extension") {
-    Copy-Item -Path "yt-bridge-extension" -Destination $publishPath -Recurse -Force
-    Write-Host "✅ Скопирована папка yt-bridge-extension" -ForegroundColor Green
+$updateTempPath = Join-Path $publishPath "update_temp"
+if (Test-Path $updateTempPath) {
+    Remove-Item -Path $updateTempPath -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "🧹 Удалена папка update_temp" -ForegroundColor DarkGray
 }
 
-Write-Host "[4/4] Создание подробной инструкции..." -ForegroundColor Yellow
+# Копируем утилиты
+foreach ($file in $requiredUtils) {
+    $src = Join-Path $projectRoot $file
+    if (Test-Path $src) {
+        Copy-Item -Path $src -Destination $publishPath -Force
+        Write-Host "✅ Скопирован: $file" -ForegroundColor Green
+    }
+}
+
+# КОПИРУЕМ ПАПКУ С РАСШИРЕНИЕМ
+if ($extensionExists) {
+    $extDest = Join-Path $publishPath "yt-bridge-extension"
+    if (Test-Path $extDest) {
+        Remove-Item -Path $extDest -Recurse -Force
+    }
+    Copy-Item -Path $extensionPath -Destination $publishPath -Recurse -Force
+    
+    $copiedCount = (Get-ChildItem -Path $extDest -Recurse -File).Count
+    Write-Host "✅ Скопирована папка 'yt-bridge-extension' ($copiedCount файлов)" -ForegroundColor Green
+    
+    # Покажем список файлов, которые попали в сборку
+    Write-Host "   Содержимое расширения:" -ForegroundColor DarkGray
+    Get-ChildItem -Path $extDest -Recurse -File | ForEach-Object {
+        $relative = $_.FullName.Substring($extDest.Length + 1)
+        Write-Host "     • $relative" -ForegroundColor DarkGray
+    }
+} else {
+    Write-Host "⏭️  Пропущено копирование расширения (папка не найдена)." -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+# ============================================================
+# 4. СОЗДАНИЕ ИНСТРУКЦИИ
+# ============================================================
+Write-Host "[4/5] Создание инструкции..." -ForegroundColor Yellow
+
 $instruction = @"
 ===============================================================
        YT SHORTS MANAGER (Автор: IZYXxx)
@@ -106,8 +212,144 @@ $instruction = @"
                               IZYXxx
 ===============================================================
 "@
-$instruction | Out-File -FilePath "$publishPath\ИНСТРУКЦИЯ.txt" -Encoding utf8
 
-Write-Host "✅ СБОРКА УСПЕШНО ЗАВЕРШЕНА!" -ForegroundColor Cyan
-Start-Process explorer.exe $publishPath
+$instruction | Out-File -FilePath "$publishPath\ИНСТРУКЦИЯ.txt" -Encoding utf8
+Write-Host "✅ Инструкция создана." -ForegroundColor Green
+Write-Host ""
+
+# ============================================================
+# 5. СОЗДАНИЕ ZIP-АРХИВА И ПРОВЕРКА СОДЕРЖИМОГО
+# ============================================================
+Write-Host "[5/5] Создание ZIP-архива..." -ForegroundColor Yellow
+
+$releaseDir = Split-Path $publishPath -Parent
+$zipPath = Join-Path $releaseDir "YTShortsManager.zip"
+
+if (Test-Path $zipPath) { Remove-Item -Path $zipPath -Force }
+
+try {
+    Compress-Archive -Path "$publishPath\*" -DestinationPath $zipPath -Force -CompressionLevel Optimal
+    Write-Host "✅ ZIP-архив создан." -ForegroundColor Green
+} catch {
+    Write-Host "❌ Ошибка создания ZIP: $_" -ForegroundColor Red
+    Pause
+    exit 1
+}
+
+# ============================================================
+# ВЕРИФИКАЦИЯ: проверяем, что расширение реально в ZIP
+# ============================================================
+Write-Host ""
+Write-Host "🔍 Проверка содержимого архива..." -ForegroundColor Yellow
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+try {
+    $totalEntries = $zip.Entries.Count
+    
+    # Проверка ключевых файлов
+    $checks = @{
+        "YTShortsManager.exe"            = "Программа"
+        "yt-dlp.exe"                     = "Движок yt-dlp"
+        "ffmpeg.exe"                     = "FFmpeg"
+        "deno.exe"                       = "Deno"
+        "ИНСТРУКЦИЯ.txt"                 = "Инструкция"
+        "yt-bridge-extension/manifest.json" = "Расширение (manifest)"
+        "yt-bridge-extension/background.js" = "Расширение (background)"
+        "yt-bridge-extension/content.js"    = "Расширение (content)"
+    }
+    
+    $allOk = $true
+    foreach ($key in $checks.Keys) {
+        $entry = $zip.Entries | Where-Object { $_.FullName.Replace('\', '/') -eq $key } | Select-Object -First 1
+        if ($entry) {
+            Write-Host "  ✅ $($checks[$key])" -ForegroundColor Green
+        } else {
+            Write-Host "  ❌ $($checks[$key]) — НЕ НАЙДЕНО!" -ForegroundColor Red
+            $allOk = $false
+        }
+    }
+
+    # Архив должен быть «плоским»: exe в корне, без лишней верхней папки.
+    $nestedExe = $zip.Entries | Where-Object { $_.FullName.Replace('\', '/') -match '^[^/]+/YTShortsManager\.exe$' }
+    if ($nestedExe) {
+        Write-Host "  ❌ Архив упакован с верхней папкой — обновление установится неверно!" -ForegroundColor Red
+        Write-Host "     Пересоберите ZIP этим скриптом и не пересжимайте папку вручную." -ForegroundColor Red
+        $allOk = $false
+    }
+    
+    # Количество файлов расширения в архиве
+    $extEntries = $zip.Entries | Where-Object { $_.FullName.Replace('\', '/') -like "yt-bridge-extension/*" }
+    $extCount = $extEntries.Count
+    
+    if ($extCount -ge 4) {
+        Write-Host "  ✅ Расширение: $extCount файлов в архиве" -ForegroundColor Green
+    } else {
+        Write-Host "  ⚠️  Расширение: только $extCount файлов (ожидалось минимум 4)" -ForegroundColor Yellow
+        $allOk = $false
+    }
+    
+    Write-Host ""
+    Write-Host "  📦 Всего файлов в архиве: $totalEntries" -ForegroundColor White
+    Write-Host ""
+    
+    if (-not $allOk) {
+        Write-Host "⚠️  ВНИМАНИЕ: Некоторые файлы отсутствуют в архиве!" -ForegroundColor Red
+        Write-Host "    Проверьте структуру проекта перед публикацией релиза." -ForegroundColor Red
+    }
+} finally {
+    $zip.Dispose()
+}
+
+# ============================================================
+# ИТОГОВЫЙ ОТЧЁТ
+# ============================================================
+$hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLower()
+$zipSizeMB = [math]::Round((Get-Item $zipPath).Length / 1MB, 2)
+
+# Читаем версию из .csproj
+$version = "0.0.0"
+$csproj = Get-ChildItem -Path $projectRoot -Filter "*.csproj" | Select-Object -First 1
+if ($csproj) {
+    try {
+        [xml]$xml = Get-Content -LiteralPath $csproj.FullName
+        $versionNode = @($xml.Project.PropertyGroup | ForEach-Object { $_.Version } | Where-Object { $_ }) | Select-Object -First 1
+        if ($versionNode) { $version = [string]$versionNode }
+    } catch { }
+}
+
+Write-Host ""
+Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "                 ✅ СБОРКА УСПЕШНО ЗАВЕРШЕНА!" -ForegroundColor Green
+Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  📦 Версия:       $version" -ForegroundColor White
+Write-Host "  🗜️  ZIP-архив:   $zipPath" -ForegroundColor White
+Write-Host "  💾 Размер ZIP:   $zipSizeMB MB" -ForegroundColor White
+Write-Host ""
+Write-Host "  🔑 SHA-256 (скопируйте в version.json):" -ForegroundColor Yellow
+Write-Host "  $hash" -ForegroundColor White
+Write-Host ""
+Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "  📋 ШАБЛОН version.json:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  {" -ForegroundColor DarkGray
+Write-Host "    `"version`": `"$version`"," -ForegroundColor DarkGray
+Write-Host "    `"download_url`": `"https://github.com/bestotarkov-max/YTShortsManager/releases/download/v$version/YTShortsManager.zip`"," -ForegroundColor DarkGray
+Write-Host "    `"sha256`": `"$hash`"," -ForegroundColor DarkGray
+Write-Host "    `"changelog`": `"Что изменилось в этой версии...`"" -ForegroundColor DarkGray
+Write-Host "  }" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
+Write-Host "  📌 Следующие шаги:" -ForegroundColor Cyan
+Write-Host "    1. Скопируйте SHA-256 выше в файл version.json" -ForegroundColor White
+Write-Host "    2. Создайте релиз v$version на GitHub" -ForegroundColor White
+Write-Host "    3. Прикрепите файл YTShortsManager.zip к релизу" -ForegroundColor White
+Write-Host "    4. Запушьте обновлённый version.json в репозиторий" -ForegroundColor White
+Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host ""
+
+# Открываем папку с ZIP и выделяем сам файл
+Start-Process explorer.exe "/select,`"$zipPath`""
+
 Pause
