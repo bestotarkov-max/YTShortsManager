@@ -1,5 +1,6 @@
 {
-  "version": "1.4.0",
-  "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.4.0/YTSMv1.4.0.zip",
-  "changelog": "Безопасность"
+  "version": "1.5.0",
+  "download_url": "https://github.com/bestotarkov-max/YTShortsManager/releases/download/v1.5.0/YTShortsManager-v1.5.0.zip",
+  "sha256": "ca742894481175341af7a565e09c641bfc2e24c21b0051fe1c8742038d05bf8d",
+  "changelog": "Новый современный интерфейс, полностью локализованные статусы и история, надёжное автообновление с проверкой SHA-256 и откатом, усиленная безопасность."
 }
