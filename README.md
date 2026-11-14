@@ -1,7 +1,7 @@
 # YT Shorts Manager
 
 Приложение для Windows: скачивание и обрезка видео с YouTube (в первую очередь Shorts) — с расширением для браузера, очередью загрузок, историей и автообновлением.
-
+https://bestotarkov-max.github.io/YTShortsManager/#features
 **Автор:** IZYXxx
 **Версия:** 1.5.0
 **Платформа:** Windows 10/11 x64
