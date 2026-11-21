@@ -1,4 +1,9 @@
 # YT Shorts Manager
+Language:
+ [Русский](./README.ru.md)  [English](./README.md) |
+
+
+
 
 A Windows app for downloading and trimming YouTube videos (primarily Shorts) — with a browser extension, a download queue, history, and auto-update.
 
