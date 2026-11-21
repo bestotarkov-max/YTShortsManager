@@ -1,44 +1,62 @@
-YT Shorts Manager
+# YT Shorts Manager
+
 A Windows app for downloading and trimming YouTube videos (primarily Shorts) — with a browser extension, a download queue, history, and auto-update.
 
-Website
+[Website](https://bestotarkov-max.github.io/YTShortsManager/#top)
 
-Author: IZYXxx Version: 1.5.0 Platform: Windows 10/11 x64
+**Author:** IZYXxx
+**Version:** 1.5.0
+**Platform:** Windows 10/11 x64
 
-Features
-Download videos and Shorts by link.
-Trim a segment by start and end time.
-Quality selection (best, 2160, 1440, 1080, 720, 480, 360).
-Audio only (MP3).
-Subtitles, thumbnails, SponsorBlock, playlist support.
-Download queue with progress and statuses.
-Download history with thumbnails.
-Chrome/Edge/Firefox extension: a button on the YouTube page, passes cookies for private videos.
-Dark theme, RU/EN localization.
-Runs in the system tray, autostart, automatic link capture from the clipboard.
-Auto-update with SHA-256 verification and rollback on failure.
-Installation
-Download YTShortsManager-v1.5.0.zip from the Releases section.
-Extract the archive to any folder (do not run it from inside the ZIP).
-Run YTShortsManager.exe. No .NET installation is required.
-Browser extension
-Open chrome://extensions (or edge://extensions).
-Enable Developer mode.
-Click Load unpacked and select the yt-bridge-extension folder.
-Building from source
-Requires .NET SDK 9.0 and PowerShell 5.1+.
+---
 
-Place the third-party utilities in the project root (they are not included in the repository):
-yt-dlp.exe — https://github.com/yt-dlp/yt-dlp/releases/latest
-ffmpeg.exe — https://www.gyan.dev/ffmpeg/builds/ (essentials)
-deno.exe — https://github.com/denoland/deno/releases/latest
-Run the build:
+## Features
+
+- Download videos and Shorts by link.
+- Trim a segment by start and end time.
+- Quality selection (best, 2160, 1440, 1080, 720, 480, 360).
+- Audio only (MP3).
+- Subtitles, thumbnails, SponsorBlock, playlist support.
+- Download queue with progress and statuses.
+- Download history with thumbnails.
+- Chrome/Edge/Firefox extension: a button on the YouTube page, passes cookies for private videos.
+- Dark theme, RU/EN localization.
+- Runs in the system tray, autostart, automatic link capture from the clipboard.
+- Auto-update with SHA-256 verification and rollback on failure.
+
+## Installation
+
+1. Download `YTShortsManager-v1.5.0.zip` from the **Releases** section.
+2. Extract the archive to any folder (do not run it from inside the ZIP).
+3. Run `YTShortsManager.exe`. No .NET installation is required.
+
+### Browser extension
+
+1. Open `chrome://extensions` (or `edge://extensions`).
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select the `yt-bridge-extension` folder.
+
+## Building from source
+
+Requires [.NET SDK 9.0](https://dotnet.microsoft.com/download) and PowerShell 5.1+.
+
+1. Place the third-party utilities in the project root (they are not included in the repository):
+   - `yt-dlp.exe` — https://github.com/yt-dlp/yt-dlp/releases/latest
+   - `ffmpeg.exe` — https://www.gyan.dev/ffmpeg/builds/ (essentials)
+   - `deno.exe` — https://github.com/denoland/deno/releases/latest
+2. Run the build:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File .\build.ps1
-or double-click Собрать.bat.
+```
 
-Result: bin/Release/net9.0-windows/win-x64/YTShortsManager.zip (self-contained, single-file). The script also verifies the archive contents and prints the SHA-256.
+or double-click `Собрать.bat`.
 
-Project structure
+Result: `bin/Release/net9.0-windows/win-x64/YTShortsManager.zip` (self-contained, single-file). The script also verifies the archive contents and prints the SHA-256.
+
+## Project structure
+
+```
 App.xaml / App.xaml.cs          — entry point, single instance, global error handling
 MainWindow.xaml / .cs           — main window, queue, settings
 HistoryWindow.xaml / .cs        — history window
@@ -59,25 +77,33 @@ Services/
 yt-bridge-extension/            — browser extension (Manifest V3)
 build.ps1                       — release ZIP build
 version.json                    — update manifest
-Publishing a release
-Bump <Version> in YTShortsManager.csproj.
-Build the archive with build.ps1 (the archive must be "flat", with the exe at the root).
-Create a release with the tag vX.Y.Z and attach the ZIP.
-Update version.json:
+```
+
+## Publishing a release
+
+1. Bump `<Version>` in `YTShortsManager.csproj`.
+2. Build the archive with `build.ps1` (the archive must be "flat", with the `exe` at the root).
+3. Create a release with the tag `vX.Y.Z` and attach the ZIP.
+4. Update `version.json`:
+
+```json
 {
   "version": "X.Y.Z",
   "download_url": "https://github.com/<user>/YTShortsManager/releases/download/vX.Y.Z/YTShortsManager-vX.Y.Z.zip",
   "sha256": "<hash from build.ps1>",
   "changelog": "Brief description of the changes"
 }
-The file name in download_url must match the asset name. If sha256 is empty or incorrect, auto-update is blocked.
+```
 
-Security
-Cookies and logs are stored in %LOCALAPPDATA%\YTShortsManager, not next to the program.
-The local server listens only on 127.0.0.1 and accepts requests only from extensions (Origin: chrome-extension:// / moz-extension://).
-Limits: request body 2 MB, queue of 30 downloads, history of 50 entries, log 2 MB.
-Updates are downloaded only from trusted GitHub hosts over HTTPS and verified by SHA-256.
-The extension requests only the cookies and storage permissions.
+The file name in `download_url` must match the asset name. If `sha256` is empty or incorrect, auto-update is blocked.
+
+## Security
+
+- Cookies and logs are stored in `%LOCALAPPDATA%\YTShortsManager`, not next to the program.
+- The local server listens only on `127.0.0.1` and accepts requests only from extensions (`Origin: chrome-extension://` / `moz-extension://`).
+- Limits: request body 2 MB, queue of 30 downloads, history of 50 entries, log 2 MB.
+- Updates are downloaded only from trusted GitHub hosts over HTTPS and verified by SHA-256.
+- The extension requests only the `cookies` and `storage` permissions.
 
 ## License
 
@@ -755,4 +781,3 @@ may consider it more useful to permit linking proprietary applications with
 the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
-
